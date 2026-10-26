@@ -1,0 +1,8 @@
+# Add project specific R8 rules here.
+# AGP will combine all keep rule files in src/main/keepRules to pass to R8
+
+# Keep Saarthi core models, enums and execution contracts
+-keep class com.saarthi.assistant.core.** { *; }
+-keep class com.saarthi.assistant.ui.components.SaarthiTab { *; }
+-keep class com.saarthi.assistant.ui.components.MicState { *; }
+-keep class com.saarthi.assistant.service.AssistantForegroundService$Companion { *; }

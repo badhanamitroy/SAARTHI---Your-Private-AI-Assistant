@@ -1,0 +1,136 @@
+<resources>
+    <string name="app_name">Saarthi</string>
+    <string name="assistant_title">Saarthi</string>
+    <string name="assistant_subtitle">Personal Assistant</string>
+    <string name="tagline">Useful offline. Smarter online. Private by design.</string>
+    <string name="greeting_title">Hello, I\'m Saarthi.</string>
+    <string name="greeting_subtitle">What would you like to do today?</string>
+
+    <!-- Connectivity -->
+    <string name="status_offline_ready">Offline ready</string>
+    <string name="status_online">Online</string>
+    <string name="status_connecting">Connecting</string>
+
+    <!-- Navigation -->
+    <string name="nav_home">Home</string>
+    <string name="nav_chat">Chat</string>
+    <string name="nav_tools">Tools</string>
+    <string name="nav_settings">Settings</string>
+
+    <!-- Voice Interaction -->
+    <string name="mic_tap_to_speak">Tap to speak</string>
+    <string name="mic_listening">Listening… Speak now</string>
+    <string name="mic_processing">Processing…</string>
+    <string name="mic_responding">Responding…</string>
+    <string name="mic_stopped">Stopped</string>
+    <string name="mic_cancel">Cancel</string>
+    <string name="mic_stop_speaking">Stop Speaking</string>
+    <string name="mic_permission_needed">Microphone permission needed</string>
+    <string name="mic_permission_desc">Enable microphone to interact with Saarthi using voice.</string>
+    <string name="btn_enable_mic">Enable Microphone</string>
+
+    <!-- Text Input -->
+    <string name="input_placeholder">Ask Saarthi anything…</string>
+    <string name="btn_send">Send</string>
+
+    <!-- Quick Actions -->
+    <string name="action_camera">Camera</string>
+    <string name="action_calculator">Calculator</string>
+    <string name="action_clock">Clock</string>
+    <string name="action_calendar">Calendar</string>
+    <string name="action_settings">Settings</string>
+    <string name="action_time">Current Time</string>
+    <string name="action_date">Current Date</string>
+    <string name="action_math">Math Solver</string>
+    <string name="action_battery">Battery</string>
+    <string name="action_flashlight">Flashlight</string>
+    <string name="hardware_battery_title">Battery Status</string>
+    <string name="hardware_flashlight_title">Flashlight</string>
+    <string name="hardware_flashlight_on">Torch ON</string>
+    <string name="hardware_flashlight_off">Torch OFF</string>
+    <string name="hardware_turn_on">Turn On</string>
+    <string name="hardware_turn_off">Turn Off</string>
+    <string name="hardware_no_flash">No Flash Hardware</string>
+    <string name="battery_charging">Charging</string>
+    <string name="battery_full">Fully Charged</string>
+    <string name="battery_discharging">Discharging</string>
+    <string name="battery_not_charging">Not charging</string>
+    <string name="battery_unknown">Unavailable</string>
+
+    <!-- Sections -->
+    <string name="section_quick_actions">Quick Actions</string>
+    <string name="section_recent_activity">Recent Activity</string>
+    <string name="section_conversation">Conversation</string>
+    <string name="section_background_assistant">Always-Ready Background Assistant</string>
+
+    <!-- Activity & History -->
+    <string name="empty_recent_activity">No recent activity yet. Tap a quick action or ask a question to get started.</string>
+    <string name="empty_conversation">Start a conversation with Saarthi. Everything runs private and offline.</string>
+    <string name="btn_clear_history">Clear</string>
+    <string name="dialog_clear_title">Clear History</string>
+    <string name="dialog_clear_message">Are you sure you want to clear your local interaction history?</string>
+    <string name="btn_cancel">Cancel</string>
+    <string name="btn_confirm">Clear</string>
+
+    <!-- Tools -->
+    <string name="tools_title">Offline Utilities</string>
+    <string name="tools_subtitle">Fast, native device tools with zero internet requirement</string>
+    <string name="tool_calc_desc">Open native phone calculator</string>
+    <string name="tool_camera_desc">Open camera viewfinder</string>
+    <string name="tool_clock_desc">Open clock and set alarms</string>
+    <string name="tool_calendar_desc">Open system calendar</string>
+    <string name="tool_settings_desc">Open Android device settings</string>
+    <string name="tool_math_calc">Calculate</string>
+    <string name="tool_math_placeholder">e.g. 125 * 8 or 45 + 17</string>
+
+    <!-- Settings -->
+    <string name="settings_title">Settings</string>
+    <string name="pref_group_assistant">Assistant Preferences</string>
+    <string name="pref_voice_feedback">Voice Spoken Feedback</string>
+    <string name="pref_voice_feedback_desc">Read out answers and actions aloud using device TTS</string>
+    <string name="pref_group_background">Background Assistant</string>
+    <string name="pref_bg_service">Background Wake Word &amp; Service</string>
+    <string name="pref_bg_service_desc">Listen in background for assistant wake commands</string>
+    <string name="pref_group_appearance">Appearance</string>
+    <string name="pref_theme">Theme</string>
+    <string name="pref_theme_dark">Midnight Navy (Dark)</string>
+    <string name="pref_theme_light">Daylight (Light)</string>
+    <string name="pref_theme_system">Follow System</string>
+    <string name="pref_group_privacy">Privacy &amp; Data</string>
+    <string name="pref_privacy_policy">Private by Design</string>
+    <string name="pref_privacy_desc">All commands, speech transcription, and math calculations execute 100% on-device. No personal audio or text is sent to the cloud.</string>
+    <string name="pref_permissions">Permissions</string>
+    <string name="pref_permissions_desc">Microphone &amp; Notifications</string>
+    <string name="pref_group_about">About</string>
+    <string name="pref_app_version">Version 1.0 (Native Offline Core)</string>
+
+    <!-- Stage 3B: System Controls -->
+    <string name="section_system_controls">System Controls</string>
+    <string name="system_controls_desc">Safe shortcuts to Android settings panels with zero invasive permissions</string>
+    <string name="setting_wifi">Wi-Fi</string>
+    <string name="setting_bluetooth">Bluetooth</string>
+    <string name="setting_mobile_data">Mobile Network</string>
+    <string name="setting_sound">Sound &amp; Volume</string>
+    <string name="setting_brightness">Brightness</string>
+    <string name="setting_panel_hint">Opens Settings Panel</string>
+
+    <!-- Stage 3B: Timer -->
+    <string name="section_timer">Countdown Timer</string>
+    <string name="timer_no_active">No active timer</string>
+    <string name="timer_running">Running</string>
+    <string name="timer_paused">Paused</string>
+    <string name="timer_finished">Finished</string>
+    <string name="timer_btn_pause">Pause</string>
+    <string name="timer_btn_resume">Resume</string>
+    <string name="timer_btn_cancel">Cancel</string>
+    <string name="timer_quick_30s">+30s</string>
+    <string name="timer_quick_1m">+1m</string>
+    <string name="timer_quick_2m">+2m</string>
+    <string name="timer_quick_5m">+5m</string>
+
+    <!-- Stage 3B: Help & Discovery -->
+    <string name="section_help">Help &amp; Command Guide</string>
+    <string name="help_subtitle">Explore what SAARTHI can do offline in English, Banglish, &amp; Bangla</string>
+    <string name="help_search_hint">Search commands or topics…</string>
+    <string name="help_tab_all">All</string>
+</resources>

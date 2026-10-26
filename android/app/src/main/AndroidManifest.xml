@@ -1,0 +1,115 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools">
+
+    <!-- Audio recording for offline voice recognition -->
+    <uses-permission android:name="android.permission.RECORD_AUDIO" />
+
+    <!-- Network state observation for honest offline/online detection -->
+    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
+
+    <!-- Foreground service permissions for background-ready assistant -->
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MICROPHONE" />
+
+    <!-- Notification permission for Android 13+ (API 33+) -->
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+
+    <!-- Package visibility declarations for detecting existing phone calculators -->
+    <queries>
+        <!-- Standard Android Calculator intent category -->
+        <intent>
+            <action android:name="android.intent.action.MAIN" />
+            <category android:name="android.intent.category.APP_CALCULATOR" />
+        </intent>
+        <!-- Common OEM & AOSP calculator packages (Samsung, Google, Xiaomi, Oppo, Vivo, Motorola, etc.) -->
+        <package android:name="com.sec.android.app.popupcalculator" />
+        <package android:name="com.google.android.calculator" />
+        <package android:name="com.android.calculator2" />
+        <package android:name="com.miui.calculator" />
+        <package android:name="com.coloros.calculator" />
+        <package android:name="com.oneplus.calculator" />
+        <package android:name="com.transsion.calculator" />
+        <package android:name="com.vivo.calculator" />
+        <package android:name="com.asus.calculator" />
+        <package android:name="com.motorola.calculator" />
+        <package android:name="com.huawei.calculator" />
+        <package android:name="com.hihonor.calculator" />
+        <package android:name="com.nothing.calculator" />
+
+        <!-- Clock / Alarms package visibility and intent actions -->
+        <intent>
+            <action android:name="android.intent.action.SHOW_ALARMS" />
+        </intent>
+        <package android:name="com.sec.android.app.clockpackage" />
+        <package android:name="com.google.android.deskclock" />
+        <package android:name="com.android.deskclock" />
+        <package android:name="com.coloros.alarmclock" />
+        <package android:name="com.oneplus.deskclock" />
+        <package android:name="com.transsion.deskclock" />
+        <package android:name="com.motorola.blur.alarmclock" />
+
+        <!-- Calendar package visibility and intent categories -->
+        <intent>
+            <action android:name="android.intent.action.MAIN" />
+            <category android:name="android.intent.category.APP_CALENDAR" />
+        </intent>
+        <package android:name="com.google.android.calendar" />
+        <package android:name="com.samsung.android.calendar" />
+        <package android:name="com.android.calendar" />
+        <package android:name="com.coloros.calendar" />
+        <package android:name="com.transsion.calendar" />
+        <package android:name="com.bbk.calendar" />
+
+        <!-- Camera package visibility and viewfinder intent action -->
+        <intent>
+            <action android:name="android.media.action.STILL_IMAGE_CAMERA" />
+        </intent>
+        <package android:name="com.sec.android.app.camera" />
+        <package android:name="com.google.android.GoogleCamera" />
+        <package android:name="com.android.camera" />
+        <package android:name="com.android.camera2" />
+        <package android:name="com.oplus.camera" />
+        <package android:name="com.oneplus.camera" />
+        <package android:name="com.transsion.camera" />
+
+        <!-- Settings package visibility and intent action -->
+        <intent>
+            <action android:name="android.settings.SETTINGS" />
+        </intent>
+        <package android:name="com.android.settings" />
+    </queries>
+
+    <application
+        android:allowBackup="true"
+        android:dataExtractionRules="@xml/data_extraction_rules"
+        android:fullBackupContent="@xml/backup_rules"
+        android:icon="@mipmap/ic_launcher"
+        android:label="@string/app_name"
+        android:roundIcon="@mipmap/ic_launcher_round"
+        android:supportsRtl="true"
+        android:theme="@style/Theme.SAARTHI">
+
+        <activity
+            android:name=".MainActivity"
+            android:exported="true"
+            android:label="@string/app_name"
+            android:theme="@style/Theme.SAARTHI"
+            android:windowSoftInputMode="adjustResize">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity>
+
+        <!-- Background-ready assistant service -->
+        <service
+            android:name=".service.AssistantForegroundService"
+            android:enabled="true"
+            android:exported="false"
+            android:foregroundServiceType="microphone" />
+
+    </application>
+
+</manifest>

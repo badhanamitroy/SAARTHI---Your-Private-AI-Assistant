@@ -4,6 +4,42 @@ All notable changes and architectural milestones for **SAARTHI AI — Your Priva
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/), and this project adheres to semantic development staging.
 
+## [Stage 3B — System Controls, Timer & Help Integration] — 2026-10-26
+
+### Added
+- **Feature A: Centralized Help Discovery & Stage 3A Integration**:
+  - Diagnosed and resolved the root cause of missing Battery and Flashlight topics in Help: `CommandEngine.kt` bypassed `HelpRegistry` with a static string and neither Home nor Tools rendered a Help UI.
+  - Connected `CommandEngine` directly to [HelpRegistry.kt](file:///d:/SAARTHI%20-%20Your%20Private%20AI%20Assistant/android/app/src/main/java/com/saarthi/assistant/core/HelpRegistry.kt) for general queries (`CommandResult.ShowHelp`) and topic-specific queries (`"help battery"`, `"help flashlight"`, `"help timer"`, `"help wifi"`).
+  - Created [HelpSection.kt](file:///d:/SAARTHI%20-%20Your%20Private%20AI%20Assistant/android/app/src/main/java/com/saarthi/assistant/ui/components/HelpSection.kt), an expandable Compose accordion embedded in `ToolsScreen` displaying 10 capability categories with clickable prompt chips in English, Bangla, and Banglish.
+- **Feature B: Safe System Settings Shortcuts**:
+  - Implemented [SystemSettingsController.kt](file:///d:/SAARTHI%20-%20Your%20Private%20AI%20Assistant/android/app/src/main/java/com/saarthi/assistant/core/SystemSettingsController.kt) with decoupled `SystemSettingsLauncher` interface.
+  - Safe shortcuts for Wi-Fi, Bluetooth, Mobile Network, Sound/Volume, and Brightness using Android panels (`Settings.Panel.*`) on API 29+ and standard settings intents.
+  - Zero invasive permissions requested (0 new permissions in `AndroidManifest.xml`).
+  - Added honest policy explanations for direct toggle attempts (e.g., `"turn on wifi"` clarifies Android restrictions and offers settings shortcut).
+- **Feature C: Practical In-App Countdown Timer**:
+  - Implemented [TimerController.kt](file:///d:/SAARTHI%20-%20Your%20Private%20AI%20Assistant/android/app/src/main/java/com/saarthi/assistant/core/TimerController.kt) featuring countdown ticker on `Dispatchers.Default`, injectable `TimeProvider`, start/pause/resume/cancel/status controls, duplicate command debouncing, and local completion notifications.
+  - Created [TimerCard.kt](file:///d:/SAARTHI%20-%20Your%20Private%20AI%20Assistant/android/app/src/main/java/com/saarthi/assistant/ui/components/TimerCard.kt) with circular progress, MM:SS display, pause/resume/cancel controls, and 1m/3m/5m presets.
+- **Feature D: Command Routing & Result Contracts**:
+  - Extended [IntentType.kt](file:///d:/SAARTHI%20-%20Your%20Private%20AI%20Assistant/android/app/src/main/java/com/saarthi/assistant/core/IntentType.kt) and [CommandResult.kt](file:///d:/SAARTHI%20-%20Your%20Private%20AI%20Assistant/android/app/src/main/java/com/saarthi/assistant/core/CommandResult.kt) with `OpenSystemSettings`, `SetTimer`, `PauseTimer`, `ResumeTimer`, `CancelTimer`, `GetTimerStatus`.
+  - Added Bengali numerals (`০-৯`) and duration regex parsing supporting English, Bangla, and Banglish patterns.
+  - Updated [AssistantForegroundService.kt](file:///d:/SAARTHI%20-%20Your%20Private%20AI%20Assistant/android/app/src/main/java/com/saarthi/assistant/service/AssistantForegroundService.kt) with execution branches for all Stage 3B intents.
+- **UI Integration**:
+  - Integrated conditional active `TimerCard` banner into [HomeScreen.kt](file:///d:/SAARTHI%20-%20Your%20Private%20AI%20Assistant/android/app/src/main/java/com/saarthi/assistant/ui/screens/HomeScreen.kt).
+  - Integrated `TimerCard`, `SystemSettingsCard.kt`, and `HelpSection.kt` into [ToolsScreen.kt](file:///d:/SAARTHI%20-%20Your%20Private%20AI%20Assistant/android/app/src/main/java/com/saarthi/assistant/ui/screens/ToolsScreen.kt).
+  - Added custom vector icons in [SaarthiIcons.kt](file:///d:/SAARTHI%20-%20Your%20Private%20AI%20Assistant/android/app/src/main/java/com/saarthi/assistant/ui/components/SaarthiIcons.kt): `Wifi`, `Bluetooth`, `MobileData`, `Brightness`, `Timer`, `Help`, `Play`, `Pause`.
+- **Automated Testing**:
+  - Created [SystemSettingsControllerTest.kt](file:///d:/SAARTHI%20-%20Your%20Private%20AI%20Assistant/android/app/src/test/java/com/saarthi/assistant/core/SystemSettingsControllerTest.kt) (13 tests) and [TimerControllerTest.kt](file:///d:/SAARTHI%20-%20Your%20Private%20AI%20Assistant/android/app/src/test/java/com/saarthi/assistant/core/TimerControllerTest.kt) (19 tests).
+  - Expanded [CommandEngineTest.kt](file:///d:/SAARTHI%20-%20Your%20Private%20AI%20Assistant/android/app/src/test/java/com/saarthi/assistant/core/CommandEngineTest.kt) to 50 tests.
+  - Full suite passed: 131/131 tests (100% pass rate).
+
+### Verified
+- Automated test suite: **131/131 unit tests passed** across all 9 test classes (0 failures, 0 skipped, 2.396s execution).
+- Release APK build: `assembleRelease` succeeded; generated APK size **1,628,313 bytes (~1.55 MB)** against 5.0 MB limit (+43,744 bytes / +2.76% from Stage 3A).
+- Debug APK build: `assembleDebug` succeeded (13,097,742 bytes).
+- Hardware verification status: **NOT VERIFIED** (Pending user testing on real physical device).
+
+---
+
 ## [Stage 3A — Device Hardware Essentials] — 2026-10-26
 
 ### Added

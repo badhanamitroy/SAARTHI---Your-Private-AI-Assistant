@@ -1,0 +1,136 @@
+<resources>
+    <string name="app_name">সারথি</string>
+    <string name="assistant_title">সারথি</string>
+    <string name="assistant_subtitle">ব্যক্তিগত সহকারী</string>
+    <string name="tagline">অফলাইনে কার্যকর। অনলাইনে বুদ্ধিমান। সুরক্ষায় ব্যক্তিগত।</string>
+    <string name="greeting_title">হ্যালো, আমি সারথি।</string>
+    <string name="greeting_subtitle">আজ আপনাকে কীভাবে সাহায্য করতে পারি?</string>
+
+    <!-- Connectivity -->
+    <string name="status_offline_ready">অফলাইন প্রস্তুত</string>
+    <string name="status_online">অনলাইন</string>
+    <string name="status_connecting">সংযুক্ত হচ্ছে</string>
+
+    <!-- Navigation -->
+    <string name="nav_home">হোম</string>
+    <string name="nav_chat">চ্যাট</string>
+    <string name="nav_tools">টুলস</string>
+    <string name="nav_settings">সেটিংস</string>
+
+    <!-- Voice Interaction -->
+    <string name="mic_tap_to_speak">কথা বলতে চাপুন</string>
+    <string name="mic_listening">শুনছি… বলুন</string>
+    <string name="mic_processing">প্রক্রিয়াকরণ চলছে…</string>
+    <string name="mic_responding">উত্তর দিচ্ছি…</string>
+    <string name="mic_stopped">থামানো হয়েছে</string>
+    <string name="mic_cancel">বাতিল</string>
+    <string name="mic_stop_speaking">কথা থামান</string>
+    <string name="mic_permission_needed">মাইক্রোফোন অনুমতি প্রয়োজন</string>
+    <string name="mic_permission_desc">কণ্ঠস্বর দিয়ে সারথির সাথে কথা বলতে মাইক্রোফোন চালু করুন।</string>
+    <string name="btn_enable_mic">অনুমতি দিন</string>
+
+    <!-- Text Input -->
+    <string name="input_placeholder">সারথিকে যেকোনো কিছু জিজ্ঞেস করুন…</string>
+    <string name="btn_send">পাঠান</string>
+
+    <!-- Quick Actions -->
+    <string name="action_camera">ক্যামেরা</string>
+    <string name="action_calculator">ক্যালকুলেটর</string>
+    <string name="action_clock">ঘড়ি</string>
+    <string name="action_calendar">ক্যালেন্ডার</string>
+    <string name="action_settings">সেটিংস</string>
+    <string name="action_time">বর্তমান সময়</string>
+    <string name="action_date">আজকের তারিখ</string>
+    <string name="action_math">গণিত সমাধান</string>
+    <string name="action_battery">ব্যাটারি</string>
+    <string name="action_flashlight">টর্চ</string>
+    <string name="hardware_battery_title">ব্যাটারি স্ট্যাটাস</string>
+    <string name="hardware_flashlight_title">টর্চলাইট</string>
+    <string name="hardware_flashlight_on">টর্চ চালু</string>
+    <string name="hardware_flashlight_off">টর্চ বন্ধ</string>
+    <string name="hardware_turn_on">চালু করুন</string>
+    <string name="hardware_turn_off">বন্ধ করুন</string>
+    <string name="hardware_no_flash">টর্চ নেই</string>
+    <string name="battery_charging">চার্জ হচ্ছে</string>
+    <string name="battery_full">ফুল চার্জ</string>
+    <string name="battery_discharging">চার্জ হচ্ছে না</string>
+    <string name="battery_not_charging">চার্জ হচ্ছে না</string>
+    <string name="battery_unknown">তথ্য নেই</string>
+
+    <!-- Sections -->
+    <string name="section_quick_actions">দ্রুত সেবা</string>
+    <string name="section_recent_activity">সাম্প্রতিক কার্যকলাপ</string>
+    <string name="section_conversation">কথোপকথন</string>
+    <string name="section_background_assistant">সবসময় প্রস্তুত ব্যাকগ্রাউন্ড সহকারী</string>
+
+    <!-- Activity & History -->
+    <string name="empty_recent_activity">এখনো কোনো সাম্প্রতিক কাজ নেই। একটি বাটন চাপুন বা প্রশ্ন করুন।</string>
+    <string name="empty_conversation">সারথির সাথে কথোপকথন শুরু করুন। সবকিছু অফলাইনে ও নিরাপদে ঘটে।</string>
+    <string name="btn_clear_history">মুছুন</string>
+    <string name="dialog_clear_title">ইতিহাস মুছুন</string>
+    <string name="dialog_clear_message">আপনি কি আপনার স্থানীয় কার্যকলাপের ইতিহাস মুছে ফেলতে চান?</string>
+    <string name="btn_cancel">বাতিল</string>
+    <string name="btn_confirm">মুছুন</string>
+
+    <!-- Tools -->
+    <string name="tools_title">অফলাইন টুলস</string>
+    <string name="tools_subtitle">ইন্টারনেট ছাড়াই দ্রুত স্থানীয় ডিভাইস টুলস</string>
+    <string name="tool_calc_desc">ফোনের ক্যালকুলেটর খুলুন</string>
+    <string name="tool_camera_desc">ক্যামেরা খুলুন</string>
+    <string name="tool_clock_desc">ঘড়ি ও অ্যালার্ম খুলুন</string>
+    <string name="tool_calendar_desc">সিস্টেম ক্যালেন্ডার খুলুন</string>
+    <string name="tool_settings_desc">ডিভাইস সেটিংস খুলুন</string>
+    <string name="tool_math_calc">হিসাব করুন</string>
+    <string name="tool_math_placeholder">যেমন: ১২৫ * ৮ বা ৪৫ + ১৭</string>
+
+    <!-- Settings -->
+    <string name="settings_title">সেটিংস</string>
+    <string name="pref_group_assistant">সহকারী সেটিংস</string>
+    <string name="pref_voice_feedback">ভয়েস ফিডব্যাক</string>
+    <string name="pref_voice_feedback_desc">ডিভাইসের মাধ্যমে উচ্চস্বরে উত্তর শুনুন</string>
+    <string name="pref_group_background">ব্যাকগ্রাউন্ড সহকারী</string>
+    <string name="pref_bg_service">ব্যাকগ্রাউন্ড সার্ভিস</string>
+    <string name="pref_bg_service_desc">অ্যাপ বন্ধ থাকা অবস্থায়ও নির্দেশনা শুনবে</string>
+    <string name="pref_group_appearance">চেহারা</string>
+    <string name="pref_theme">থিম</string>
+    <string name="pref_theme_dark">মিডনাইট নেভি (ডার্ক)</string>
+    <string name="pref_theme_light">ডেলাইট (লাইট)</string>
+    <string name="pref_theme_system">সিস্টেম ডিফল্ট</string>
+    <string name="pref_group_privacy">গোপনীয়তা ও ডেটা</string>
+    <string name="pref_privacy_policy">সুরক্ষায় ব্যক্তিগত</string>
+    <string name="pref_privacy_desc">সমস্ত কমান্ড, ভয়েস ও হিসাব ডিভাইসেই সংরক্ষিত হয়। কোনো ব্যক্তিগত তথ্য ক্লাউডে পাঠানো হয় না।</string>
+    <string name="pref_permissions">অনুমতিসমূহ</string>
+    <string name="pref_permissions_desc">মাইক্রোফোন ও নোটিফিকেশন</string>
+    <string name="pref_group_about">পরিচিতি</string>
+    <string name="pref_app_version">ভার্সন ১.০ (অফলাইন কোর)</string>
+
+    <!-- Stage 3B: System Controls -->
+    <string name="section_system_controls">সিস্টেম নিয়ন্ত্রণ</string>
+    <string name="system_controls_desc">অনুমতি ছাড়াই অ্যান্ড্রয়েড সেটিংসের নিরাপদ শর্টকাট</string>
+    <string name="setting_wifi">ওয়াইফাই</string>
+    <string name="setting_bluetooth">ব্লুটুথ</string>
+    <string name="setting_mobile_data">মোবাইল নেটওয়ার্ক</string>
+    <string name="setting_sound">ভলিউম ও শব্দ</string>
+    <string name="setting_brightness">ব্রাইটনেস</string>
+    <string name="setting_panel_hint">সেটিংস প্যানেল খোলে</string>
+
+    <!-- Stage 3B: Timer -->
+    <string name="section_timer">কাউন্টডাউন টাইমার</string>
+    <string name="timer_no_active">কোনো সক্রিয় টাইমার নেই</string>
+    <string name="timer_running">চলছে</string>
+    <string name="timer_paused">স্থগিত</string>
+    <string name="timer_finished">সম্পন্ন</string>
+    <string name="timer_btn_pause">পজ</string>
+    <string name="timer_btn_resume">চালু</string>
+    <string name="timer_btn_cancel">বাতিল</string>
+    <string name="timer_quick_30s">+৩০ সে.</string>
+    <string name="timer_quick_1m">+১ মি.</string>
+    <string name="timer_quick_2m">+২ মি.</string>
+    <string name="timer_quick_5m">+৫ মি.</string>
+
+    <!-- Stage 3B: Help & Discovery -->
+    <string name="section_help">সাহায্য ও কমান্ড গাইড</string>
+    <string name="help_subtitle">অফলাইনে ইংরেজি, বাংলিশ ও বাংলায় কী কী করা যাবে</string>
+    <string name="help_search_hint">কমান্ড বা বিষয় খুঁজুন…</string>
+    <string name="help_tab_all">সকল</string>
+</resources>
