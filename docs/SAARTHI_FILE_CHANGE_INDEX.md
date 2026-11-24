@@ -1,7 +1,7 @@
 # SAARTHI — Repository File Taxonomy & Change Index
 
-**Document Version:** 3.2.0  
-**Current Date:** October 26, 2026  
+**Document Version:** 5.1.0  
+**Current Date:** October 29, 2026  
 **Project:** `D:\SAARTHI - Your Private AI Assistant`  
 **Application ID:** `com.saarthi.assistant`  
 
@@ -13,7 +13,7 @@ This index provides a complete, authoritative mapping of all active source files
 
 | File Path | Module / Layer | Primary Responsibility | Verification Status |
 |---|---|---|---|
-| [MainActivity.kt](file:///d:/SAARTHI%20-%20Your%20Private%20AI%20Assistant/android/app/src/main/java/com/saarthi/assistant/MainActivity.kt) | App Entrypoint | Activity lifecycle, permission requests (`RECORD_AUDIO`), service binding, navigation state, timer snapshot observer, direct settings launcher callbacks, `Lifecycle.Event.ON_RESUME` hardware state refresh, and unified `processCommand(text)` router. | **DEVICE-VERIFIED** |
+| [MainActivity.kt](file:///d:/SAARTHI%20-%20Your%20Private%20AI%20Assistant/android/app/src/main/java/com/saarthi/assistant/MainActivity.kt) | App Entrypoint | Activity lifecycle, permission requests (`RECORD_AUDIO`), service binding, navigation state, timer snapshot observer, direct settings launcher callbacks, `Lifecycle.Event.ON_RESUME` hardware state refresh, `VoiceSessionCoordinator` binding, and unified `processCommand(text)` router. | **DEVICE-VERIFIED** |
 | [ui/screens/HomeScreen.kt](file:///d:/SAARTHI%20-%20Your%20Private%20AI%20Assistant/android/app/src/main/java/com/saarthi/assistant/ui/screens/HomeScreen.kt) | Presentation | Primary dashboard with pulsing voice orb, active Timer card banner, battery & flashlight quick status tiles, quick app action cards, and natural voice interaction card. | **BUILD-VERIFIED** |
 | [ui/screens/ConversationScreen.kt](file:///d:/SAARTHI%20-%20Your%20Private%20AI%20Assistant/android/app/src/main/java/com/saarthi/assistant/ui/screens/ConversationScreen.kt) | Presentation | Message history stream displaying user commands and assistant responses with timestamps, copy actions, and TTS replay. | **BUILD-VERIFIED** |
 | [ui/screens/ToolsScreen.kt](file:///d:/SAARTHI%20-%20Your%20Private%20AI%20Assistant/android/app/src/main/java/com/saarthi/assistant/ui/screens/ToolsScreen.kt) | Presentation | Dedicated utilities screen with active Timer card, System Settings shortcuts card, Help & Commands accordion, hardware controls card (explicit Flashlight ON/OFF, Battery status), on-device math solver, and app launcher grid. | **BUILD-VERIFIED** |
@@ -35,11 +35,12 @@ This index provides a complete, authoritative mapping of all active source files
 
 | File Path | Module / Layer | Primary Responsibility | Verification Status |
 |---|---|---|---|
-| [SystemSettingsController.kt](file:///d:/SAARTHI%20-%20Your%20Private%20AI%20Assistant/android/app/src/main/java/com/saarthi/assistant/core/SystemSettingsController.kt) | Core / Settings | Safe launcher for Wi-Fi, Bluetooth, Mobile Data, Sound, and Brightness using Android panels (`Settings.Panel.*`) on API 29+ and standard settings intents. Decoupled with `SystemSettingsLauncher` interface. | **AUTOMATED-TESTED** (13/13 unit tests) |
+| [ConversationContext.kt](file:///d:/SAARTHI%20-%20Your%20Private%20AI%20Assistant/android/app/src/main/java/com/saarthi/assistant/core/ConversationContext.kt) | Core / State | Conversational session state maintaining active pending intents (`PendingIntent.TimerDuration`), follow-up flags, 30s expiry windows, and trilingual cancellation evaluation. | **AUTOMATED-TESTED** |
+| [SystemSettingsController.kt](file:///d:/SAARTHI%20-%20Your%20Private%20AI%20Assistant/android/app/src/main/java/com/saarthi/assistant/core/SystemSettingsController.kt) | Core / Settings | Safe launcher for Wi-Fi, Bluetooth, Mobile Data, Sound, and Brightness using Android panels (`Settings.Panel.*`) on API 29+ and standard settings intents. Decoupled with `SystemSettingsLauncher` interface. | **AUTOMATED-TESTED** (14/14 unit tests) |
 | [TimerController.kt](file:///d:/SAARTHI%20-%20Your%20Private%20AI%20Assistant/android/app/src/main/java/com/saarthi/assistant/core/TimerController.kt) | Core / Timer | Local countdown timer engine on `Dispatchers.Default` with state machine, debounced duplicate protection, local notifications, and injectable `TimeProvider`. | **AUTOMATED-TESTED** (19/19 unit tests) |
 | [HelpRegistry.kt](file:///d:/SAARTHI%20-%20Your%20Private%20AI%20Assistant/android/app/src/main/java/com/saarthi/assistant/core/HelpRegistry.kt) | Core / Help | Single source of truth for all 10 assistant capabilities with authentic English, Bangla, and Banglish examples and topic-level matcher. | **AUTOMATED-TESTED** |
 | [DeviceHardwareController.kt](file:///d:/SAARTHI%20-%20Your%20Private%20AI%20Assistant/android/app/src/main/java/com/saarthi/assistant/core/DeviceHardwareController.kt) | Core / Hardware | Offline battery status provider (`ACTION_BATTERY_CHANGED`) and safe `CameraManager` flashlight controller with real-time `TorchCallback` tracking and dependency injection hooks. | **AUTOMATED-TESTED** (14/14 unit tests) |
-| [CommandEngine.kt](file:///d:/SAARTHI%20-%20Your%20Private%20AI%20Assistant/android/app/src/main/java/com/saarthi/assistant/core/CommandEngine.kt) | Core / NLP | Regex and token-based intent parser supporting English, Bangla (বাংলা), and Banglish for settings shortcuts, timer, battery, flashlight, app launch, math, time, date, and help. Supports Bengali numerals `০-৯`. | **AUTOMATED-TESTED** (50/50 unit tests) |
+| [CommandEngine.kt](file:///d:/SAARTHI%20-%20Your%20Private%20AI%20Assistant/android/app/src/main/java/com/saarthi/assistant/core/CommandEngine.kt) | Core / NLP | Regex and token-based intent parser supporting English, Bangla (বাংলা), and Banglish for settings shortcuts, timer, battery, flashlight, app launch, math, time, date, and help. Supports multi-turn follow-ups and Bengali numerals `০-৯`. | **AUTOMATED-TESTED** (58/58 unit tests) |
 | [AppLauncher.kt](file:///d:/SAARTHI%20-%20Your%20Private%20AI%20Assistant/android/app/src/main/java/com/saarthi/assistant/core/AppLauncher.kt) | Core / System | Multi-tier app launcher resolving OEM package tables (Samsung, Xiaomi, Oppo, etc.), category selectors, and system intents. | **AUTOMATED-TESTED** |
 | [CalculatorLauncher.kt](file:///d:/SAARTHI%20-%20Your%20Private%20AI%20Assistant/android/app/src/main/java/com/saarthi/assistant/core/CalculatorLauncher.kt) | Core / System | Specialized calculator launcher with explicit `ExecutionContract` returns and voice math fallback advice. | **AUTOMATED-TESTED** (7/7 unit tests) |
 | [ExecutionContract.kt](file:///d:/SAARTHI%20-%20Your%20Private%20AI%20Assistant/android/app/src/main/java/com/saarthi/assistant/core/ExecutionContract.kt) | Core / Contract | Sealed class hierarchy (`ExecutionContract.Succeeded`, `ExecutionContract.Failed`) enforcing structured results and error reporting (including `HARDWARE_UNAVAILABLE`, `HARDWARE_BUSY`, `LAUNCH_FAILED`). | **AUTOMATED-TESTED** |
@@ -53,14 +54,46 @@ This index provides a complete, authoritative mapping of all active source files
 
 | File Path | Module / Layer | Primary Responsibility | Verification Status |
 |---|---|---|---|
+| [VoiceSessionCoordinator.kt](file:///d:/SAARTHI%20-%20Your%20Private%20AI%20Assistant/android/app/src/main/java/com/saarthi/assistant/voice/VoiceSessionCoordinator.kt) | Voice / Flow | Turn-taking voice session controller managing automatic post-speech listening, mutual exclusion ducking, debounce protection, and bounded silence backoff. | **AUTOMATED-TESTED** (8/8 unit tests) |
+| [VoiceEngine.kt](file:///d:/SAARTHI%20-%20Your%20Private%20AI%20Assistant/android/app/src/main/java/com/saarthi/assistant/voice/VoiceEngine.kt) | Voice / Interface | Decoupled audio listening interface defining start, stop, cancel, `isListening()`, and `release()`. | **AUTOMATED-TESTED** |
+| [SpeechSynthesizer.kt](file:///d:/SAARTHI%20-%20Your%20Private%20AI%20Assistant/android/app/src/main/java/com/saarthi/assistant/voice/SpeechSynthesizer.kt) | Voice / Interface | Decoupled speech synthesis interface defining speech playback, stop, `isInitialized()`, and speech lifecycle callbacks. | **AUTOMATED-TESTED** |
 | [AndroidSpeechEngine.kt](file:///d:/SAARTHI%20-%20Your%20Private%20AI%20Assistant/android/app/src/main/java/com/saarthi/assistant/voice/AndroidSpeechEngine.kt) | Voice / ASR | Android platform `SpeechRecognizer` wrapper passing `EXTRA_PREFER_OFFLINE = true` with speech state callbacks. | **BUILD-VERIFIED** |
-| [TextToSpeechEngine.kt](file:///d:/SAARTHI%20-%20Your%20Private%20AI%20Assistant/android/app/src/main/java/com/saarthi/assistant/voice/TextToSpeechEngine.kt) | Voice / TTS | Android platform `TextToSpeech` engine with audio ducking and completion listeners. Hardened against uninitialized speech calls. | **AUTOMATED-TESTED** |
+| [TextToSpeechEngine.kt](file:///d:/SAARTHI%20-%20Your%20Private%20AI%20Assistant/android/app/src/main/java/com/saarthi/assistant/voice/TextToSpeechEngine.kt) | Voice / TTS | Android platform `TextToSpeech` engine with audio ducking, defensive Handler watchdog timer, and completion listeners. Hardened against uninitialized speech calls. | **AUTOMATED-TESTED** |
 | [NaturalVoiceSession.kt](file:///d:/SAARTHI%20-%20Your%20Private%20AI%20Assistant/android/app/src/main/java/com/saarthi/assistant/voice/NaturalVoiceSession.kt) | Voice / Flow | Bidirectional conversational loop manager coordinating listen → recognize → parse → speak cycles. | **AUTOMATED-TESTED** (11/11 unit tests) |
 | [SpeechPronunciationFormatter.kt](file:///d:/SAARTHI%20-%20Your%20Private%20AI%20Assistant/android/app/src/main/java/com/saarthi/assistant/voice/SpeechPronunciationFormatter.kt) | Voice / Text | Text normalization utility ensuring natural TTS pronunciation of abbreviations, times, and math symbols. | **AUTOMATED-TESTED** (7/7 unit tests) |
 
 ---
 
-## 4. Wake-Word & Background Subsystems (`com.saarthi.assistant.wakeword`, `.service`)
+## 4. Telephony & Hands-Free Calling Subsystem (`com.saarthi.assistant.telephony`)
+
+| File Path | Module / Layer | Primary Responsibility | Verification Status |
+|---|---|---|---|
+| `telephony/CallState.kt` | Telephony / Model | Enums (`CallState`, `AudioRoute`) and data model (`CallDetails`). | **AUTOMATED-TESTED** |
+| `telephony/ContactResolver.kt` | Telephony / Contacts | Interface, `AndroidContactResolver` (reads `ContactsContract.PhoneLookup` with `READ_CONTACTS`), and `FakeContactResolver`. | **AUTOMATED-TESTED** |
+| `telephony/AudioRouteDetector.kt` | Telephony / Audio | Interface, `AndroidAudioRouteDetector` (detects wired/BT earbuds via `AudioManager` / `AudioDeviceInfo`), and `FakeAudioRouteDetector`. | **AUTOMATED-TESTED** |
+| `telephony/CallPreferences.kt` | Telephony / Settings | Data class, `CallPreferencesManager` interface, `AndroidCallPreferencesManager` (`SharedPreferences`), and `InMemoryCallPreferencesManager`. Manages `speakerAnnouncementEnabled` (default ON) and `earbudsAnnouncementEnabled` (default ON). | **AUTOMATED-TESTED** |
+| `telephony/CallController.kt` | Telephony / Control | Interface, `AndroidCallController` (`acceptRingingCall` API 26+, `endCall` API 28+), and `FakeCallController`. Honest error reporting. | **AUTOMATED-TESTED** (5/5 unit tests) |
+| `telephony/SmartCallerAnnouncer.kt` | Telephony / Speech | Announcer managing contact formatting vs unknown numbers, phone speaker default playback, earbud routing, capped repetition (max 2), and immediate termination. | **AUTOMATED-TESTED** (10/10 unit tests) |
+| `telephony/CallCoordinator.kt` | Telephony / Flow | Orchestrator connecting call lifecycle, active call protection (Call Waiting), duplicate broadcast suppression, voice session pause/resume, and voice action execution. | **AUTOMATED-TESTED** (7/7 unit tests) |
+| `telephony/IncomingCallReceiver.kt` | Telephony / Receiver | Manifest broadcast receiver for `android.intent.action.PHONE_STATE`. | **BUILD-VERIFIED** |
+
+---
+
+## 5. Free Hybrid AI & Privacy Gates (`com.saarthi.assistant.ai`)
+
+| File Path | Module / Layer | Primary Responsibility | Verification Status |
+|---|---|---|---|
+| `ai/AiProvider.kt` | AI / Interface | Decoupled cloud AI provider interface, request parameters, and response sealed classes. | **AUTOMATED-TESTED** |
+| `ai/HybridRequestRouter.kt` | AI / Router | Local-first router prioritizing offline command engine and routing unknown queries through privacy filters. | **AUTOMATED-TESTED** (11/11 unit tests) |
+| `ai/SensitiveDataFilter.kt` | AI / Privacy | Zero-leakage client filter detecting API keys, passwords, bearer tokens, and Luhn-validated payment cards. | **AUTOMATED-TESTED** (10/10 unit tests) |
+| `ai/PrivacySettings.kt` | AI / Settings | User-visible privacy toggles (`allowCloudFallback`, `redactSensitiveData`, `allowMobileDataForAi`). | **AUTOMATED-TESTED** (8/8 unit tests) |
+| `ai/NetworkChecker.kt` | AI / Network | Network connectivity abstraction for Wi-Fi and mobile data. | **AUTOMATED-TESTED** |
+| `ai/SecureHttpAiProvider.kt` | AI / Network | HTTP provider using standard platform `HttpURLConnection` to communicate with the user's serverless Cloudflare proxy. | **AUTOMATED-TESTED** (6/6 unit tests) |
+| `ai/MockAiProvider.kt` | AI / Testing | Deterministic mock provider for unit testing. | **AUTOMATED-TESTED** |
+
+---
+
+## 6. Wake-Word & Background Subsystems (`com.saarthi.assistant.wakeword`, `.service`)
 
 | File Path | Module / Layer | Primary Responsibility | Verification Status |
 |---|---|---|---|
@@ -82,27 +115,42 @@ This index provides a complete, authoritative mapping of all active source files
 
 ---
 
-## 6. Automated Test Suites (`android/app/src/test/java/com/saarthi/assistant`)
+## 7. Automated Test Suites (`android/app/src/test/java/com/saarthi/assistant`)
 
 | File Path | Test Target | Tests Passed | Verification Status |
 |---|---|---|---|
-| [CommandEngineTest.kt](file:///d:/SAARTHI%20-%20Your%20Private%20AI%20Assistant/android/app/src/test/java/com/saarthi/assistant/core/CommandEngineTest.kt) | `CommandEngine.kt`, Settings shortcuts, Timers, Bengali digits, Battery, Flashlight, Calculator | 50 / 50 | **AUTOMATED-TESTED** |
+| [CommandEngineTest.kt](file:///d:/SAARTHI%20-%20Your%20Private%20AI%20Assistant/android/app/src/test/java/com/saarthi/assistant/core/CommandEngineTest.kt) | `CommandEngine.kt`, Settings shortcuts, Timers, Bengali digits, Battery, Flashlight, Calculator | 58 / 58 | **AUTOMATED-TESTED** |
 | [TimerControllerTest.kt](file:///d:/SAARTHI%20-%20Your%20Private%20AI%20Assistant/android/app/src/test/java/com/saarthi/assistant/core/TimerControllerTest.kt) | `TimerController.kt` countdown, states, debouncing, bounds | 19 / 19 | **AUTOMATED-TESTED** |
+| `ai/HybridRequestRouterTest.kt` | `HybridRequestRouter.kt` offline prioritization, 4-tier classification & privacy filters | 21 / 21 | **AUTOMATED-TESTED** |
 | [DeviceHardwareControllerTest.kt](file:///d:/SAARTHI%20-%20Your%20Private%20AI%20Assistant/android/app/src/test/java/com/saarthi/assistant/core/DeviceHardwareControllerTest.kt) | `DeviceHardwareController.kt` battery calculations, states, camera fallback | 14 / 14 | **AUTOMATED-TESTED** |
-| [SystemSettingsControllerTest.kt](file:///d:/SAARTHI%20-%20Your%20Private%20AI%20Assistant/android/app/src/test/java/com/saarthi/assistant/core/SystemSettingsControllerTest.kt) | `SystemSettingsController.kt` launchers, execution contracts, intent mappings | 13 / 13 | **AUTOMATED-TESTED** |
-| [NaturalVoiceSessionTest.kt](file:///d:/SAARTHI%20-%20Your%20Private%20AI%20Assistant/android/app/src/test/java/com/saarthi/assistant/voice/NaturalVoiceSessionTest.kt) | `NaturalVoiceSession.kt` | 11 / 11 | **AUTOMATED-TESTED** |
+| [SystemSettingsControllerTest.kt](file:///d:/SAARTHI%20-%20Your%20Private%20AI%20Assistant/android/app/src/test/java/com/saarthi/assistant/core/SystemSettingsControllerTest.kt) | `SystemSettingsController.kt` launchers, execution contracts, intent mappings | 14 / 14 | **AUTOMATED-TESTED** |
+| [VoiceSessionCoordinatorTest.kt](file:///d:/SAARTHI%20-%20Your%20Private%20AI%20Assistant/android/app/src/test/java/com/saarthi/assistant/voice/VoiceSessionCoordinatorTest.kt) | `VoiceSessionCoordinator.kt` turn-taking lifecycle, stop commands, exceptions, call shielding | 13 / 13 | **AUTOMATED-TESTED** |
+| [NaturalVoiceSessionTest.kt](file:///d:/SAARTHI%20-%20Your%20Private%20AI%20Assistant/android/app/src/test/java/com/saarthi/assistant/voice/NaturalVoiceSessionTest.kt) | `NaturalVoiceSession.kt`, wake phrase parsing, acoustic KWS interface contract | 13 / 13 | **AUTOMATED-TESTED** |
+| `telephony/SmartCallerAnnouncerTest.kt` | `SmartCallerAnnouncer.kt` default speaker playback, earbud routing, privacy, repetition | 10 / 10 | **AUTOMATED-TESTED** |
 | [WakeWordCoordinatorTest.kt](file:///d:/SAARTHI%20-%20Your%20Private%20AI%20Assistant/android/app/src/test/java/com/saarthi/assistant/wakeword/WakeWordCoordinatorTest.kt) | `WakeWordCoordinator.kt` | 9 / 9 | **AUTOMATED-TESTED** |
 | [ExecutionContractTest.kt](file:///d:/SAARTHI%20-%20Your%20Private%20AI%20Assistant/android/app/src/test/java/com/saarthi/assistant/core/ExecutionContractTest.kt) | `ExecutionContract.kt`, `CalculatorLauncher.kt` | 7 / 7 | **AUTOMATED-TESTED** |
+| `telephony/CallCoordinatorTest.kt` | `CallCoordinator.kt` call lifecycle, active call protection, deduplication | 7 / 7 | **AUTOMATED-TESTED** |
+| `telephony/CommandEngineCallTest.kt` | Trilingual call answer/reject speech matching & intent routing | 7 / 7 | **AUTOMATED-TESTED** |
 | [SpeechPronunciationFormatterTest.kt](file:///d:/SAARTHI%20-%20Your%20Private%20AI%20Assistant/android/app/src/test/java/com/saarthi/assistant/voice/SpeechPronunciationFormatterTest.kt) | `SpeechPronunciationFormatter.kt` | 7 / 7 | **AUTOMATED-TESTED** |
+| `ai/SensitiveDataFilterTest.kt` | `SensitiveDataFilter.kt` credit cards, API keys, credentials, phone & telephony | 8 / 8 | **AUTOMATED-TESTED** |
+| `telephony/CallControllerTest.kt` | `CallController.kt` answering, rejecting, permission checks | 5 / 5 | **AUTOMATED-TESTED** |
+| `ai/PrivacySettingsTest.kt` | `PrivacySettings.kt` and `AndroidPrivacyController` | 3 / 3 | **AUTOMATED-TESTED** |
+| `ai/SecureHttpAiProviderTest.kt` | `SecureHttpAiProvider.kt` HTTP transport & sanitization | 3 / 3 | **AUTOMATED-TESTED** |
 | [ExampleUnitTest.kt](file:///d:/SAARTHI%20-%20Your%20Private%20AI%20Assistant/android/app/src/test/java/com/saarthi/assistant/ExampleUnitTest.kt) | JVM sanity test | 1 / 1 | **AUTOMATED-TESTED** |
-| **Total Automated Tests** | **All 9 Test Suites** | **131 / 131 (100% Passed)** | **AUTOMATED-TESTED** |
+| **Total Automated Tests** | **All 18 Test Suites** | **219 / 219 (100% Passed)** | **AUTOMATED-TESTED** |
 
 ---
 
-## 7. Project Documentation (`docs/`)
+## 8. Project Documentation (`docs/`)
 
 | File Path | Description |
 |---|---|
+| [docs/SAARTHI_STAGE5B_HYBRID_AI_FOUNDATION_REPORT.md](file:///d:/SAARTHI%20-%20Your%20Private%20AI%20Assistant/docs/SAARTHI_STAGE5B_HYBRID_AI_FOUNDATION_REPORT.md) | Stage 5B hybrid AI foundation and wake-word feasibility report, 4-tier request classification, telephony data privacy protection, free provider investigation, KWS feasibility, and release build verification. |
+| [docs/SAARTHI_STAGE5A_HANDSFREE_VOICE_AUDIT_REPORT.md](file:///d:/SAARTHI%20-%20Your%20Private%20AI%20Assistant/docs/SAARTHI_STAGE5A_HANDSFREE_VOICE_AUDIT_REPORT.md) | Stage 5A hands-free voice intelligence and wake-word audit report, turn-taking hardening, acoustic KWS feasibility evaluation, and test verification. |
+| [docs/SAARTHI_STAGE4_1_1_TEST_EVIDENCE_AUDIT.md](file:///d:/SAARTHI%20-%20Your%20Private%20AI%20Assistant/docs/SAARTHI_STAGE4_1_1_TEST_EVIDENCE_AUDIT.md) | Stage 4.1.1 forensic test evidence audit, arithmetic discrepancy resolution (204 tests), release APK verification, and real-device testing checklist. |
+| [docs/SAARTHI_STAGE4_1_CALLING_CORRECTION_REPORT.md](file:///d:/SAARTHI%20-%20Your%20Private%20AI%20Assistant/docs/SAARTHI_STAGE4_1_CALLING_CORRECTION_REPORT.md) | Stage 4.1 verification report for Caller Announcement Preference Correction, speaker default playback, active-call shielding, deduplication, test results, and release APK metrics. |
+| [docs/SAARTHI_STAGE4_HANDSFREE_CALLING_IMPLEMENTATION_REPORT.md](file:///d:/SAARTHI%20-%20Your%20Private%20AI%20Assistant/docs/SAARTHI_STAGE4_HANDSFREE_CALLING_IMPLEMENTATION_REPORT.md) | Stage 4 implementation report for Hands-Free Calling, Smart Caller Awareness, Earbud Optimization, trilingual call control, test metrics, and release APK verification. |
+| [docs/SAARTHI_STAGE3C_IMPLEMENTATION_REPORT.md](file:///d:/SAARTHI%20-%20Your%20Private%20AI%20Assistant/docs/SAARTHI_STAGE3C_IMPLEMENTATION_REPORT.md) | Stage 3C implementation report detailing build recovery, turn-taking voice sessions, and conversational follow-up context. |
 | [docs/SAARTHI_STAGE3B_IMPLEMENTATION_REPORT.md](file:///d:/SAARTHI%20-%20Your%20Private%20AI%20Assistant/docs/SAARTHI_STAGE3B_IMPLEMENTATION_REPORT.md) | Stage 3B implementation report detailing root cause analysis for Help integration, system settings shortcuts, timer engine, test results, release APK size, and physical testing checklist. |
 | [docs/SAARTHI_STAGE3A_IMPLEMENTATION_REPORT.md](file:///d:/SAARTHI%20-%20Your%20Private%20AI%20Assistant/docs/SAARTHI_STAGE3A_IMPLEMENTATION_REPORT.md) | Stage 3A implementation report for offline battery status and flashlight hardware control, test outcomes, release build verification, and manual phone testing guide. |
 | [docs/SAARTHI_PHASE3_READINESS_AUDIT.md](file:///d:/SAARTHI%20-%20Your%20Private%20AI%20Assistant/docs/SAARTHI_PHASE3_READINESS_AUDIT.md) | Authoritative source forensic audit, candidate feature evaluation, and staged Phase 3 plan. |
