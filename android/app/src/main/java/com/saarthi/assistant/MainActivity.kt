@@ -25,6 +25,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
@@ -33,10 +34,18 @@ import androidx.core.content.ContextCompat
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
+import com.saarthi.assistant.ai.AndroidNetworkChecker
+import com.saarthi.assistant.ai.AndroidPrivacyController
+import com.saarthi.assistant.ai.ConversationMemory
+import com.saarthi.assistant.ai.HybridRequestRouter
+import com.saarthi.assistant.ai.HybridRoutingResult
+import com.saarthi.assistant.ai.SecureHttpAiProvider
+import android.content.Context
 import com.saarthi.assistant.core.AppLauncher
 import com.saarthi.assistant.core.BatteryStatusResult
 import com.saarthi.assistant.core.CommandEngine
 import com.saarthi.assistant.core.CommandResult
+import com.saarthi.assistant.core.ConversationState
 import com.saarthi.assistant.core.DeviceHardwareController
 import com.saarthi.assistant.core.ExecutionContract
 import com.saarthi.assistant.core.HistoryManager
@@ -56,6 +65,16 @@ import com.saarthi.assistant.ui.screens.ToolsScreen
 import com.saarthi.assistant.ui.theme.SAARTHITheme
 import com.saarthi.assistant.voice.AndroidSpeechEngine
 import com.saarthi.assistant.voice.TextToSpeechEngine
+import com.saarthi.assistant.telephony.AndroidAudioRouteDetector
+import com.saarthi.assistant.telephony.AndroidCallController
+import com.saarthi.assistant.telephony.AndroidCallPreferencesManager
+import com.saarthi.assistant.telephony.AndroidContactResolver
+import com.saarthi.assistant.telephony.CallCoordinator
+import com.saarthi.assistant.telephony.CallPreferences
+import com.saarthi.assistant.telephony.SmartCallerAnnouncer
+import com.saarthi.assistant.voice.VoiceSessionCoordinator
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.launch
 
 class MainActivity : ComponentActivity() {
 
@@ -137,6 +156,66 @@ fun SaarthiApp(
     val speechEngine = remember { AndroidSpeechEngine(context.applicationContext) }
     val textToSpeechEngine = remember { TextToSpeechEngine(context.applicationContext) }
     val commandEngine = remember { CommandEngine() }
+    val requestScope = rememberCoroutineScope()
+    val privacyController = remember { AndroidPrivacyController(context.applicationContext) }
+    var privacySettings by remember { mutableStateOf(privacyController.getSettings()) }
+    val networkChecker = remember { AndroidNetworkChecker(context.applicationContext) }
+    val conversationMemory = remember { ConversationMemory(context.applicationContext) }
+
+    fun clearConversationHistory() {
+        HistoryManager.clear(context)
+        conversationMemory.clear()
+    }
+
+    fun routeOnlineQuery(
+        queryText: String,
+        onComplete: (spoken: String, display: String) -> Unit
+    ) {
+        requestScope.launch {
+            val currentPrivacy = privacyController.getSettings()
+            val router = HybridRequestRouter(
+                commandEngine = commandEngine,
+                privacyManager = privacyController,
+                networkChecker = networkChecker,
+                aiProvider = SecureHttpAiProvider(endpointUrl = currentPrivacy.customEndpointUrl)
+            )
+            val result = try {
+                router.routeSuspend(
+                    rawInput = queryText,
+                    recentHistory = conversationMemory.recentMessages()
+                )
+            } catch (cancelled: CancellationException) {
+                throw cancelled
+            } catch (_: Exception) {
+                HybridRoutingResult.Error("The AI request failed unexpectedly. Please try again.")
+            }
+
+            val (reply, display) = when (result) {
+                is HybridRoutingResult.LocalAction -> {
+                    val localReply = when (val local = result.commandResult) {
+                        is CommandResult.Reply -> local.text
+                        is CommandResult.Clarification -> local.question
+                        else -> "That request is handled by SAARTHI's offline controls."
+                    }
+                    Pair(localReply, "Ready")
+                }
+                is HybridRoutingResult.OnlineAiResponse -> {
+                    conversationMemory.appendTurn(queryText, result.replyText)
+                    Pair(result.replyText, result.providerName)
+                }
+                is HybridRoutingResult.ConsentRequired -> Pair(
+                    "Review and enable Cloud AI in Settings before sending general questions. Your local device commands will keep working offline.",
+                    "Cloud AI consent required"
+                )
+                is HybridRoutingResult.PrivacyRefusal -> Pair(result.reason, "Blocked for privacy")
+                is HybridRoutingResult.OfflineExplanation -> Pair(result.explanation, "Offline")
+                is HybridRoutingResult.Error -> Pair(result.errorText, "AI request failed")
+            }
+
+            HistoryManager.addInteraction(context, queryText, reply)
+            onComplete(reply, display)
+        }
+    }
 
     // Background Assistant service state
     val isBgRunning by AssistantForegroundService.isServiceRunning
@@ -154,10 +233,27 @@ fun SaarthiApp(
     // Timer State
     val timerSnapshot by TimerController.snapshot
 
+    // Telephony & Hands-Free Calling Controllers
+    val contactResolver = remember { AndroidContactResolver(context.applicationContext) }
+    val audioRouteDetector = remember { AndroidAudioRouteDetector(context.applicationContext) }
+    val callPreferencesManager = remember { AndroidCallPreferencesManager(context.applicationContext) }
+    val callController = remember { AndroidCallController(context.applicationContext) }
+    var callPreferences by remember { mutableStateOf(callPreferencesManager.getPreferences()) }
+
+    fun checkPhonePermissions(): Boolean {
+        val phoneState = ContextCompat.checkSelfPermission(context, Manifest.permission.READ_PHONE_STATE) == PackageManager.PERMISSION_GRANTED
+        val contacts = ContextCompat.checkSelfPermission(context, Manifest.permission.READ_CONTACTS) == PackageManager.PERMISSION_GRANTED
+        return phoneState && contacts
+    }
+
+    var hasPhonePermissions by remember { mutableStateOf(checkPhonePermissions()) }
+
+    // Hardware status updater
     fun refreshHardwareStatus() {
         batteryStatus = DeviceHardwareController.getRawBatteryStatus(context)
         isFlashlightOn = DeviceHardwareController.isFlashlightOn(context)
         isFlashAvailable = DeviceHardwareController.isFlashAvailable(context)
+        hasPhonePermissions = checkPhonePermissions()
     }
 
     val lifecycleOwner = LocalLifecycleOwner.current
@@ -197,26 +293,238 @@ fun SaarthiApp(
         }
     }
 
-    // TTS Callbacks
-    LaunchedEffect(textToSpeechEngine) {
-        textToSpeechEngine.onSpeechStart = {
-            statusText = "Speaking..."
-            micState = MicState.RESPONDING
-        }
-        textToSpeechEngine.onSpeechDone = {
-            if (statusText == "Speaking...") {
-                statusText = "Ready"
-                micState = MicState.IDLE
+    fun executeCommandAction(
+        context: Context,
+        result: CommandResult,
+        queryText: String,
+        refreshHardwareStatus: () -> Unit,
+        onComplete: (spoken: String, display: String) -> Unit
+    ) {
+        when (result) {
+            is CommandResult.Reply -> {
+                HistoryManager.addInteraction(context, queryText, result.text)
+                onComplete(result.text, "Ready")
+            }
+            CommandResult.OpenCalculator -> {
+                when (val contract = AppLauncher.execute(context, TargetApp.CALCULATOR)) {
+                    is ExecutionContract.Succeeded -> {
+                        HistoryManager.addInteraction(context, queryText, contract.spokenFeedback, "Calculator")
+                        onComplete(contract.spokenFeedback, contract.displayFeedback)
+                    }
+                    is ExecutionContract.Failed -> {
+                        HistoryManager.addInteraction(context, queryText, contract.spokenFeedback)
+                        onComplete(contract.spokenFeedback, contract.displayFeedback)
+                    }
+                    else -> onComplete("Opening Calculator...", "Calculator")
+                }
+            }
+            is CommandResult.OpenApp -> {
+                when (val contract = AppLauncher.execute(context, result.targetApp)) {
+                    is ExecutionContract.Succeeded -> {
+                        HistoryManager.addInteraction(context, queryText, contract.spokenFeedback, result.targetApp.displayName)
+                        onComplete(contract.spokenFeedback, contract.displayFeedback)
+                    }
+                    is ExecutionContract.Failed -> {
+                        HistoryManager.addInteraction(context, queryText, contract.spokenFeedback)
+                        onComplete(contract.spokenFeedback, contract.displayFeedback)
+                    }
+                    else -> onComplete("Opening ${result.targetApp.displayName}...", result.targetApp.displayName)
+                }
+            }
+            is CommandResult.GetBatteryStatus -> {
+                val contract = DeviceHardwareController.getBatteryStatus(context)
+                refreshHardwareStatus()
+                val (feedback, display) = when (contract) {
+                    is ExecutionContract.Succeeded -> Pair(contract.spokenFeedback, contract.displayFeedback)
+                    is ExecutionContract.Failed -> Pair(contract.spokenFeedback, contract.displayFeedback)
+                    else -> Pair("Battery information is unavailable.", "Battery unavailable")
+                }
+                HistoryManager.addInteraction(context, queryText, feedback, display)
+                onComplete(feedback, display)
+            }
+            is CommandResult.SetFlashlight -> {
+                val contract = DeviceHardwareController.setFlashlight(context, result.enabled)
+                refreshHardwareStatus()
+                val (feedback, display) = when (contract) {
+                    is ExecutionContract.Succeeded -> Pair(contract.spokenFeedback, contract.displayFeedback)
+                    is ExecutionContract.Failed -> Pair(contract.spokenFeedback, contract.displayFeedback)
+                    else -> Pair("Could not change flashlight state.", "Flashlight failed")
+                }
+                HistoryManager.addInteraction(context, queryText, feedback, display)
+                onComplete(feedback, display)
+            }
+            is CommandResult.OpenSystemSettings -> {
+                val contract = SystemSettingsController.openSetting(context, result.settingType, result.isDirectToggleAttempt)
+                val (feedback, display) = when (contract) {
+                    is ExecutionContract.Succeeded -> Pair(contract.spokenFeedback, contract.displayFeedback)
+                    is ExecutionContract.Failed -> Pair(contract.spokenFeedback, contract.displayFeedback)
+                    else -> Pair("Could not open settings.", "Settings failed")
+                }
+                HistoryManager.addInteraction(context, queryText, feedback, display)
+                onComplete(feedback, display)
+            }
+            is CommandResult.SetTimer -> {
+                val contract = TimerController.startTimer(context, result.durationSeconds)
+                val (feedback, display) = when (contract) {
+                    is ExecutionContract.Succeeded -> Pair(contract.spokenFeedback, contract.displayFeedback)
+                    is ExecutionContract.Failed -> Pair(contract.spokenFeedback, contract.displayFeedback)
+                    else -> Pair("Could not set timer.", "Timer failed")
+                }
+                HistoryManager.addInteraction(context, queryText, feedback, display)
+                onComplete(feedback, display)
+            }
+            CommandResult.PauseTimer -> {
+                val contract = TimerController.pauseTimer()
+                val (feedback, display) = when (contract) {
+                    is ExecutionContract.Succeeded -> Pair(contract.spokenFeedback, contract.displayFeedback)
+                    is ExecutionContract.Failed -> Pair(contract.spokenFeedback, contract.displayFeedback)
+                    else -> Pair("Could not pause timer.", "Pause failed")
+                }
+                HistoryManager.addInteraction(context, queryText, feedback, display)
+                onComplete(feedback, display)
+            }
+            CommandResult.ResumeTimer -> {
+                val contract = TimerController.resumeTimer(context)
+                val (feedback, display) = when (contract) {
+                    is ExecutionContract.Succeeded -> Pair(contract.spokenFeedback, contract.displayFeedback)
+                    is ExecutionContract.Failed -> Pair(contract.spokenFeedback, contract.displayFeedback)
+                    else -> Pair("Could not resume timer.", "Resume failed")
+                }
+                HistoryManager.addInteraction(context, queryText, feedback, display)
+                onComplete(feedback, display)
+            }
+            CommandResult.CancelTimer -> {
+                val contract = TimerController.cancelTimer()
+                val (feedback, display) = when (contract) {
+                    is ExecutionContract.Succeeded -> Pair(contract.spokenFeedback, contract.displayFeedback)
+                    is ExecutionContract.Failed -> Pair(contract.spokenFeedback, contract.displayFeedback)
+                    else -> Pair("Could not cancel timer.", "Cancel failed")
+                }
+                HistoryManager.addInteraction(context, queryText, feedback, display)
+                onComplete(feedback, display)
+            }
+            CommandResult.GetTimerStatus -> {
+                val contract = TimerController.getStatus()
+                val (feedback, display) = when (contract) {
+                    is ExecutionContract.Succeeded -> Pair(contract.spokenFeedback, contract.displayFeedback)
+                    is ExecutionContract.Failed -> Pair(contract.spokenFeedback, contract.displayFeedback)
+                    else -> Pair("Timer status is unavailable.", "Status unavailable")
+                }
+                HistoryManager.addInteraction(context, queryText, feedback, display)
+                onComplete(feedback, display)
+            }
+            CommandResult.AnswerCall -> {
+                val coordinator = CallCoordinator.instance
+                val contract = coordinator?.handleVoiceCallAnswer() ?: AndroidCallController(context).answerCall()
+                val (feedback, display) = when (contract) {
+                    is ExecutionContract.Succeeded -> Pair(contract.spokenFeedback, contract.displayFeedback)
+                    is ExecutionContract.Failed -> Pair(contract.spokenFeedback, contract.displayFeedback)
+                    else -> Pair("Unable to answer call.", "Answer failed")
+                }
+                HistoryManager.addInteraction(context, queryText, feedback, display)
+                onComplete(feedback, display)
+            }
+            CommandResult.RejectCall -> {
+                val coordinator = CallCoordinator.instance
+                val contract = coordinator?.handleVoiceCallReject() ?: AndroidCallController(context).rejectCall()
+                val (feedback, display) = when (contract) {
+                    is ExecutionContract.Succeeded -> Pair(contract.spokenFeedback, contract.displayFeedback)
+                    is ExecutionContract.Failed -> Pair(contract.spokenFeedback, contract.displayFeedback)
+                    else -> Pair("Unable to decline call.", "Decline failed")
+                }
+                HistoryManager.addInteraction(context, queryText, feedback, display)
+                onComplete(feedback, display)
+            }
+            is CommandResult.Clarification -> {
+                HistoryManager.addInteraction(context, queryText, result.question)
+                onComplete(result.question, "Clarification needed")
+            }
+            is CommandResult.SensitiveConfirmation -> {
+                HistoryManager.addInteraction(context, queryText, result.confirmationPrompt)
+                onComplete(result.confirmationPrompt, "Confirmation needed")
+            }
+            is CommandResult.WakeWordAcknowledged -> {
+                onComplete(result.message, "Listening for command...")
+            }
+            CommandResult.StopSpeaking -> {
+                textToSpeechEngine.stop()
+                onComplete("Speaking stopped.", "Stopped")
+            }
+            CommandResult.StopListening -> {
+                speechEngine.stopListening()
+                onComplete("Listening stopped.", "Stopped")
+            }
+            CommandResult.NeedsOnlineAI -> {
+                routeOnlineQuery(queryText, onComplete)
+            }
+            CommandResult.Ignore -> {
+                onComplete("", "Ready")
             }
         }
-        textToSpeechEngine.onSpeechError = { errorMsg ->
-            statusText = errorMsg
-            micState = MicState.IDLE
+    }
+
+    // Voice Session Coordinator
+    val voiceSessionCoordinator = remember {
+        VoiceSessionCoordinator(
+            voiceEngine = speechEngine,
+            speechSynthesizer = textToSpeechEngine,
+            commandEngine = commandEngine,
+            actionExecutor = { commandResult, onComplete ->
+                executeCommandAction(context, commandResult, lastUserQuery, ::refreshHardwareStatus, onComplete)
+            }
+        ).apply {
+            this.isVoiceFeedbackEnabled = isVoiceFeedbackEnabled
+        }
+    }
+
+    LaunchedEffect(isVoiceFeedbackEnabled) {
+        voiceSessionCoordinator.isVoiceFeedbackEnabled = isVoiceFeedbackEnabled
+    }
+
+    val smartCallerAnnouncer = remember {
+        SmartCallerAnnouncer(
+            speechSynthesizer = textToSpeechEngine,
+            audioRouteDetector = audioRouteDetector,
+            preferencesManager = callPreferencesManager
+        )
+    }
+
+    val callCoordinator = remember(voiceSessionCoordinator) {
+        CallCoordinator(
+            contactResolver = contactResolver,
+            audioRouteDetector = audioRouteDetector,
+            callPreferencesManager = callPreferencesManager,
+            callController = callController,
+            smartCallerAnnouncer = smartCallerAnnouncer,
+            voiceSessionCoordinator = voiceSessionCoordinator
+        )
+    }
+
+    LaunchedEffect(voiceSessionCoordinator) {
+        voiceSessionCoordinator.onStateChanged = { convState ->
+            micState = when (convState) {
+                ConversationState.IDLE -> MicState.IDLE
+                ConversationState.LISTENING -> MicState.LISTENING
+                ConversationState.AWAITING_FOLLOW_UP -> MicState.LISTENING
+                ConversationState.PROCESSING, ConversationState.EXECUTING -> MicState.PROCESSING
+                ConversationState.SPEAKING -> MicState.RESPONDING
+                ConversationState.ERROR -> if (voiceSessionCoordinator.statusText.contains("permission", ignoreCase = true)) MicState.PERMISSION_DENIED else MicState.IDLE
+            }
+        }
+        voiceSessionCoordinator.onStatusChanged = { newStatus ->
+            statusText = newStatus
+        }
+        voiceSessionCoordinator.onTranscriptReceived = { text ->
+            lastUserQuery = text
+        }
+        voiceSessionCoordinator.onResponseReceived = { response ->
+            lastAssistantResponse = response
         }
     }
 
     DisposableEffect(Unit) {
         onDispose {
+            voiceSessionCoordinator.stopSession()
             speechEngine.release()
             textToSpeechEngine.release()
         }
@@ -249,6 +557,12 @@ fun SaarthiApp(
         }
     }
 
+    val phonePermissionsLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.RequestMultiplePermissions()
+    ) {
+        hasPhonePermissions = checkPhonePermissions()
+    }
+
     fun requestPermissions(onGranted: () -> Unit) {
         val permissions = mutableListOf(Manifest.permission.RECORD_AUDIO)
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
@@ -272,228 +586,8 @@ fun SaarthiApp(
     fun processCommand(text: String) {
         val trimmed = text.trim()
         if (trimmed.isBlank()) return
-
         lastUserQuery = trimmed
-        micState = MicState.PROCESSING
-
-        when (val result = commandEngine.process(trimmed)) {
-            is CommandResult.Reply -> {
-                lastAssistantResponse = result.text
-                statusText = "Ready"
-                micState = MicState.IDLE
-                HistoryManager.addInteraction(context, trimmed, result.text)
-                if (isVoiceFeedbackEnabled) textToSpeechEngine.speak(result.text)
-            }
-
-            CommandResult.OpenCalculator -> {
-                when (val contract = AppLauncher.execute(context, TargetApp.CALCULATOR)) {
-                    is ExecutionContract.Succeeded -> {
-                        lastAssistantResponse = contract.spokenFeedback
-                        statusText = contract.displayFeedback
-                        micState = MicState.IDLE
-                        HistoryManager.addInteraction(context, trimmed, contract.spokenFeedback, "Calculator")
-                        if (isVoiceFeedbackEnabled) textToSpeechEngine.speak(contract.spokenFeedback)
-                    }
-                    is ExecutionContract.Failed -> {
-                        lastAssistantResponse = contract.spokenFeedback
-                        statusText = contract.displayFeedback
-                        micState = MicState.IDLE
-                        HistoryManager.addInteraction(context, trimmed, contract.spokenFeedback)
-                        if (isVoiceFeedbackEnabled) textToSpeechEngine.speak(contract.spokenFeedback)
-                    }
-                    else -> {
-                        micState = MicState.IDLE
-                    }
-                }
-            }
-
-            is CommandResult.OpenApp -> {
-                when (val contract = AppLauncher.execute(context, result.targetApp)) {
-                    is ExecutionContract.Succeeded -> {
-                        lastAssistantResponse = contract.spokenFeedback
-                        statusText = contract.displayFeedback
-                        micState = MicState.IDLE
-                        HistoryManager.addInteraction(context, trimmed, contract.spokenFeedback, result.targetApp.displayName)
-                        if (isVoiceFeedbackEnabled) textToSpeechEngine.speak(contract.spokenFeedback)
-                    }
-                    is ExecutionContract.Failed -> {
-                        lastAssistantResponse = contract.spokenFeedback
-                        statusText = contract.displayFeedback
-                        micState = MicState.IDLE
-                        HistoryManager.addInteraction(context, trimmed, contract.spokenFeedback)
-                        if (isVoiceFeedbackEnabled) textToSpeechEngine.speak(contract.spokenFeedback)
-                    }
-                    else -> {
-                        micState = MicState.IDLE
-                    }
-                }
-            }
-
-            is CommandResult.GetBatteryStatus -> {
-                val contract = DeviceHardwareController.getBatteryStatus(context)
-                refreshHardwareStatus()
-                val (feedback, display) = when (contract) {
-                    is ExecutionContract.Succeeded -> Pair(contract.spokenFeedback, contract.displayFeedback)
-                    is ExecutionContract.Failed -> Pair(contract.spokenFeedback, contract.displayFeedback)
-                    else -> Pair("Battery information is unavailable.", "Battery unavailable")
-                }
-                lastAssistantResponse = feedback
-                statusText = display
-                micState = MicState.IDLE
-                HistoryManager.addInteraction(context, trimmed, feedback, display)
-                if (isVoiceFeedbackEnabled) textToSpeechEngine.speak(feedback)
-            }
-
-            is CommandResult.SetFlashlight -> {
-                val contract = DeviceHardwareController.setFlashlight(context, result.enabled)
-                refreshHardwareStatus()
-                val (feedback, display) = when (contract) {
-                    is ExecutionContract.Succeeded -> Pair(contract.spokenFeedback, contract.displayFeedback)
-                    is ExecutionContract.Failed -> Pair(contract.spokenFeedback, contract.displayFeedback)
-                    else -> Pair("Could not change flashlight state.", "Flashlight failed")
-                }
-                lastAssistantResponse = feedback
-                statusText = display
-                micState = MicState.IDLE
-                HistoryManager.addInteraction(context, trimmed, feedback, display)
-                if (isVoiceFeedbackEnabled) textToSpeechEngine.speak(feedback)
-            }
-
-            is CommandResult.OpenSystemSettings -> {
-                val contract = SystemSettingsController.openSetting(context, result.settingType)
-                val (feedback, display) = when (contract) {
-                    is ExecutionContract.Succeeded -> Pair(contract.spokenFeedback, contract.displayFeedback)
-                    is ExecutionContract.Failed -> Pair(contract.spokenFeedback, contract.displayFeedback)
-                    else -> Pair("Could not open settings.", "Settings failed")
-                }
-                lastAssistantResponse = feedback
-                statusText = display
-                micState = MicState.IDLE
-                HistoryManager.addInteraction(context, trimmed, feedback, display)
-                if (isVoiceFeedbackEnabled) textToSpeechEngine.speak(feedback)
-            }
-
-            is CommandResult.SetTimer -> {
-                val contract = TimerController.startTimer(context, result.durationSeconds)
-                val (feedback, display) = when (contract) {
-                    is ExecutionContract.Succeeded -> Pair(contract.spokenFeedback, contract.displayFeedback)
-                    is ExecutionContract.Failed -> Pair(contract.spokenFeedback, contract.displayFeedback)
-                    else -> Pair("Could not set timer.", "Timer failed")
-                }
-                lastAssistantResponse = feedback
-                statusText = display
-                micState = MicState.IDLE
-                HistoryManager.addInteraction(context, trimmed, feedback, display)
-                if (isVoiceFeedbackEnabled) textToSpeechEngine.speak(feedback)
-            }
-
-            CommandResult.PauseTimer -> {
-                val contract = TimerController.pauseTimer()
-                val (feedback, display) = when (contract) {
-                    is ExecutionContract.Succeeded -> Pair(contract.spokenFeedback, contract.displayFeedback)
-                    is ExecutionContract.Failed -> Pair(contract.spokenFeedback, contract.displayFeedback)
-                    else -> Pair("Could not pause timer.", "Pause failed")
-                }
-                lastAssistantResponse = feedback
-                statusText = display
-                micState = MicState.IDLE
-                HistoryManager.addInteraction(context, trimmed, feedback, display)
-                if (isVoiceFeedbackEnabled) textToSpeechEngine.speak(feedback)
-            }
-
-            CommandResult.ResumeTimer -> {
-                val contract = TimerController.resumeTimer(context)
-                val (feedback, display) = when (contract) {
-                    is ExecutionContract.Succeeded -> Pair(contract.spokenFeedback, contract.displayFeedback)
-                    is ExecutionContract.Failed -> Pair(contract.spokenFeedback, contract.displayFeedback)
-                    else -> Pair("Could not resume timer.", "Resume failed")
-                }
-                lastAssistantResponse = feedback
-                statusText = display
-                micState = MicState.IDLE
-                HistoryManager.addInteraction(context, trimmed, feedback, display)
-                if (isVoiceFeedbackEnabled) textToSpeechEngine.speak(feedback)
-            }
-
-            CommandResult.CancelTimer -> {
-                val contract = TimerController.cancelTimer()
-                val (feedback, display) = when (contract) {
-                    is ExecutionContract.Succeeded -> Pair(contract.spokenFeedback, contract.displayFeedback)
-                    is ExecutionContract.Failed -> Pair(contract.spokenFeedback, contract.displayFeedback)
-                    else -> Pair("Could not cancel timer.", "Cancel failed")
-                }
-                lastAssistantResponse = feedback
-                statusText = display
-                micState = MicState.IDLE
-                HistoryManager.addInteraction(context, trimmed, feedback, display)
-                if (isVoiceFeedbackEnabled) textToSpeechEngine.speak(feedback)
-            }
-
-            CommandResult.GetTimerStatus -> {
-                val contract = TimerController.getStatus()
-                val (feedback, display) = when (contract) {
-                    is ExecutionContract.Succeeded -> Pair(contract.spokenFeedback, contract.displayFeedback)
-                    is ExecutionContract.Failed -> Pair(contract.spokenFeedback, contract.displayFeedback)
-                    else -> Pair("Timer status is unavailable.", "Status unavailable")
-                }
-                lastAssistantResponse = feedback
-                statusText = display
-                micState = MicState.IDLE
-                HistoryManager.addInteraction(context, trimmed, feedback, display)
-                if (isVoiceFeedbackEnabled) textToSpeechEngine.speak(feedback)
-            }
-
-            is CommandResult.Clarification -> {
-                lastAssistantResponse = result.question
-                statusText = "Clarification needed"
-                micState = MicState.IDLE
-                HistoryManager.addInteraction(context, trimmed, result.question)
-                if (isVoiceFeedbackEnabled) textToSpeechEngine.speak(result.question)
-            }
-
-            is CommandResult.SensitiveConfirmation -> {
-                lastAssistantResponse = result.confirmationPrompt
-                statusText = "Confirmation needed"
-                micState = MicState.IDLE
-                HistoryManager.addInteraction(context, trimmed, result.confirmationPrompt)
-                if (isVoiceFeedbackEnabled) textToSpeechEngine.speak(result.confirmationPrompt)
-            }
-
-            is CommandResult.WakeWordAcknowledged -> {
-                lastAssistantResponse = result.message
-                statusText = "Listening for command..."
-                micState = MicState.IDLE
-                if (isVoiceFeedbackEnabled) textToSpeechEngine.speak(result.message)
-            }
-
-            CommandResult.StopSpeaking -> {
-                textToSpeechEngine.stop()
-                lastAssistantResponse = "Speaking stopped."
-                statusText = "Stopped"
-                micState = MicState.IDLE
-            }
-
-            CommandResult.StopListening -> {
-                speechEngine.stopListening()
-                lastAssistantResponse = "Listening stopped."
-                statusText = "Stopped listening"
-                micState = MicState.IDLE
-            }
-
-            CommandResult.NeedsOnlineAI -> {
-                val honestMsg = "I cannot do that offline. Offline capabilities include opening apps, checking the time and date, calculating math, and device settings."
-                lastAssistantResponse = honestMsg
-                statusText = "Online AI required"
-                micState = MicState.IDLE
-                HistoryManager.addInteraction(context, trimmed, honestMsg)
-                if (isVoiceFeedbackEnabled) textToSpeechEngine.speak(honestMsg)
-            }
-
-            CommandResult.Ignore -> {
-                statusText = "Ready"
-                micState = MicState.IDLE
-            }
-        }
+        voiceSessionCoordinator.handleSpeechRecognized(trimmed)
     }
 
     // Mic action trigger
@@ -505,29 +599,15 @@ fun SaarthiApp(
             return
         }
 
-        if (micState == MicState.LISTENING) {
-            speechEngine.stopListening()
-            micState = MicState.IDLE
-            statusText = "Stopped listening"
-        } else if (micState == MicState.RESPONDING) {
-            textToSpeechEngine.stop()
-            micState = MicState.IDLE
-            statusText = "Ready"
+        if (voiceSessionCoordinator.isSessionActive) {
+            if (voiceSessionCoordinator.state == ConversationState.SPEAKING) {
+                textToSpeechEngine.stop()
+                voiceSessionCoordinator.stopSession("Ready")
+            } else {
+                voiceSessionCoordinator.stopSession("Stopped listening")
+            }
         } else {
-            micState = MicState.LISTENING
-            statusText = "Listening..."
-            speechEngine.startListening(
-                onResult = { recognized ->
-                    processCommand(recognized)
-                },
-                onError = { error ->
-                    statusText = error
-                    micState = MicState.IDLE
-                    if (isVoiceFeedbackEnabled) {
-                        textToSpeechEngine.speak("Sorry, I could not understand that.")
-                    }
-                }
-            )
+            voiceSessionCoordinator.startSession()
         }
     }
 
@@ -685,14 +765,10 @@ fun SaarthiApp(
                         },
                         onMicClick = { handleMicAction() },
                         onCancelListening = {
-                            speechEngine.cancelListening()
-                            micState = MicState.IDLE
-                            statusText = "Ready"
+                            voiceSessionCoordinator.cancelCurrentOperation()
                         },
                         onStopSpeaking = {
-                            textToSpeechEngine.stop()
-                            micState = MicState.IDLE
-                            statusText = "Ready"
+                            voiceSessionCoordinator.stopSession("Ready")
                         },
                         lastUserQuery = lastUserQuery,
                         lastAssistantResponse = lastAssistantResponse,
@@ -734,7 +810,7 @@ fun SaarthiApp(
                         micState = micState,
                         onMicClick = { handleMicAction() },
                         onClearHistory = {
-                            HistoryManager.clear(context)
+                            clearConversationHistory()
                         }
                     )
                 }
@@ -798,7 +874,65 @@ fun SaarthiApp(
                             requestPermissions {}
                         },
                         onClearHistory = {
-                            HistoryManager.clear(context)
+                            clearConversationHistory()
+                        },
+                        privacySettings = privacySettings,
+                        onToggleCloudAi = { enabled ->
+                            if (enabled) {
+                                privacyController.setCloudAiEnabled(true)
+                            } else {
+                                privacyController.clearConsent()
+                                privacyController.setAllowConversationContext(false)
+                            }
+                            privacySettings = privacyController.getSettings()
+                        },
+                        onGrantCloudAiConsent = {
+                            privacyController.setCloudConsentGranted(true)
+                            privacyController.setCloudAiEnabled(true)
+                            privacySettings = privacyController.getSettings()
+                        },
+                        onToggleCloudContext = { enabled ->
+                            privacyController.setAllowConversationContext(enabled)
+                            privacySettings = privacyController.getSettings()
+                        },
+                        onSaveCloudEndpoint = { endpoint ->
+                            privacyController.setCustomEndpointUrl(endpoint)
+                            privacySettings = privacyController.getSettings()
+                        },
+                        callPreferences = callPreferences,
+                        onToggleCallerAnnouncement = {
+                            callPreferencesManager.setCallerAnnouncementEnabled(it)
+                            callPreferences = callPreferencesManager.getPreferences()
+                        },
+                        onToggleSpeakerAnnouncement = {
+                            callPreferencesManager.setSpeakerAnnouncementEnabled(it)
+                            callPreferences = callPreferencesManager.getPreferences()
+                        },
+                        onToggleEarbudsAnnouncement = {
+                            callPreferencesManager.setEarbudsAnnouncementEnabled(it)
+                            callPreferences = callPreferencesManager.getPreferences()
+                        },
+                        onToggleVoiceCallControl = {
+                            callPreferencesManager.setVoiceCallControlEnabled(it)
+                            callPreferences = callPreferencesManager.getPreferences()
+                        },
+                        onToggleAnnounceUnknown = {
+                            callPreferencesManager.setAnnounceUnknownNumbers(it)
+                            callPreferences = callPreferencesManager.getPreferences()
+                        },
+                        hasPhonePermissions = hasPhonePermissions,
+                        onRequestPhonePermissions = {
+                            val perms = mutableListOf(
+                                Manifest.permission.READ_PHONE_STATE,
+                                Manifest.permission.READ_CONTACTS
+                            )
+                            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                                perms.add(Manifest.permission.ANSWER_PHONE_CALLS)
+                            }
+                            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
+                                perms.add(Manifest.permission.READ_CALL_LOG)
+                            }
+                            phonePermissionsLauncher.launch(perms.toTypedArray())
                         }
                     )
                 }

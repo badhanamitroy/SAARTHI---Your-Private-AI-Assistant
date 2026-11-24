@@ -1,0 +1,10 @@
+name = "saarthi-proxy"
+main = "worker.js"
+compatibility_date = "2024-04-01"
+
+# Cloudflare Workers Free Plan:
+# 100,000 requests per day at zero cost (no credit card required).
+#
+# Secret Configuration:
+# Run: npx wrangler secret put GROQ_API_KEY
+# (Enter your free Groq API key from https://console.groq.com)

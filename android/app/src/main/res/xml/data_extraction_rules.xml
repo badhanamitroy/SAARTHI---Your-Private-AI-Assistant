@@ -5,15 +5,13 @@
 -->
 <data-extraction-rules>
     <cloud-backup>
-        <!-- TODO: Use <include> and <exclude> to control what is backed up.
-        <include .../>
-        <exclude .../>
-        -->
+        <exclude domain="sharedpref" path="saarthi_ai_memory.xml" />
+        <exclude domain="sharedpref" path="saarthi_privacy_prefs.xml" />
+        <exclude domain="sharedpref" path="saarthi_history.xml" />
     </cloud-backup>
-    <!--
     <device-transfer>
-        <include .../>
-        <exclude .../>
+        <exclude domain="sharedpref" path="saarthi_ai_memory.xml" />
+        <exclude domain="sharedpref" path="saarthi_privacy_prefs.xml" />
+        <exclude domain="sharedpref" path="saarthi_history.xml" />
     </device-transfer>
-    -->
 </data-extraction-rules>

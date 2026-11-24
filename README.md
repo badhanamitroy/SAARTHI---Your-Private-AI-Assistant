@@ -4,14 +4,14 @@
 
 ![SAARTHI Logo](Saarthi%20Icon.png)
 
-**A lightweight, 100% offline, privacy-first AI voice and text assistant for Android.**
+**A lightweight, offline-first, privacy-first AI voice and text assistant for Android.**
 
 [![Android](https://img.shields.io/badge/Platform-Android%208.0%2B%20(API%2026%2B)-3DDC84?logo=android&logoColor=white)](https://android.com)
 [![Kotlin](https://img.shields.io/badge/Kotlin-2.0.21-7F52FF?logo=kotlin&logoColor=white)](https://kotlinlang.org)
 [![Compose](https://img.shields.io/badge/Jetpack%20Compose-Material%203-4285F4?logo=jetpackcompose&logoColor=white)](https://developer.android.com/jetpack/compose)
 [![Tests](https://img.shields.io/badge/Unit%20Tests-131%20Passed%20(100%25)-brightgreen)](docs/SAARTHI_STAGE3B_IMPLEMENTATION_REPORT.md)
 [![APK Size](https://img.shields.io/badge/Release%20APK-1.55%20MB%20(Budget%20%3C%205MB)-blue)](docs/SAARTHI_STAGE3B_IMPLEMENTATION_REPORT.md)
-[![Privacy](https://img.shields.io/badge/Privacy-100%25%20On--Device%20%2F%20Zero%20Cloud-success)](#privacy--security-pledge)
+[![Privacy](https://img.shields.io/badge/Privacy-Offline--First%20%2F%20Cloud%20Opt--In-success)](#privacy--security-pledge)
 
 </div>
 
@@ -19,7 +19,7 @@
 
 ## 📖 Overview
 
-**SAARTHI** is an on-device personal AI assistant engineered for low-to-mid-range Android smartphones. Built with native **Kotlin** and **Jetpack Compose (Material 3)**, SAARTHI operates completely offline with **zero cloud dependencies, zero data tracking, and zero invasive permissions**.
+**SAARTHI** is an offline-first personal assistant engineered for low-to-mid-range Android smartphones. Built with native **Kotlin** and **Jetpack Compose (Material 3)**, its device controls, speech recognition, and math run locally. Optional general-question AI can be enabled with explicit consent; it sends text only to a user-configured HTTPS endpoint.
 
 Whether via hands-free voice commands or an accessible manual text bar, SAARTHI enables instant device control, fast calculations, countdown timers, safe system settings shortcuts, and deep application launching across **English**, **Bangla (বাংলা)**, and **Banglish (phonetic Latin script)**.
 
@@ -61,6 +61,12 @@ Whether via hands-free voice commands or an accessible manual text bar, SAARTHI 
 - **Mutual Audio Exclusion:** Coordinates listening, offline recognition, and text-to-speech feedback without microphone contention or audio feedback loops.
 - **Foreground Service:** Lightweight foreground service for background assistant readiness.
 
+### 🧠 8. Optional Hybrid AI
+- **OpenJarvis-Inspired Local-First Routing:** Recognized commands and offline queries always go through SAARTHI's on-device command engine; only unknown general questions can use Cloud AI. The routing and bounded-memory design is adapted to Android/Kotlin from [OpenJarvis](https://github.com/open-jarvis/openjarvis).
+- **Explicit Consent:** Cloud AI is off by default. Enabling it requires an in-app disclosure and a user-configured HTTPS endpoint.
+- **Private Conversation Memory:** Successful AI turns are stored locally. Recent AI turns are excluded from requests unless the separate context-sharing setting is enabled; device commands are never included.
+- **Sensitive Data Guard:** Prompts containing detected credentials, payment cards, personal identifiers, phone numbers, contact, or caller queries are blocked before network access. AI replies remain conversational and cannot execute device actions.
+
 ---
 
 ## 🗣️ Supported Commands (Trilingual)
@@ -83,7 +89,9 @@ Whether via hands-free voice commands or an accessible manual text bar, SAARTHI 
 
 ## 🔒 Privacy & Security Pledge
 
-- **100% Offline & Private:** SAARTHI never transmits voice, audio, text, telemetry, or analytics to any remote server or third-party cloud.
+- **Offline by Default:** Device commands, speech recognition, math, timers, and local conversation memory run on the phone. Optional Cloud AI requires explicit consent and a configured HTTPS endpoint.
+- **Data Minimization:** No microphone audio, contacts, SMS, files, or device command history are sent. Recent AI-only conversation context is transmitted only if separately enabled.
+- **Local Safety Boundary:** Sensitive prompts are screened on-device, and generated text cannot trigger Android device actions.
 - **Zero Invasive Permissions:**
   - ❌ **NO** `WRITE_SETTINGS` (system settings are never modified silently).
   - ❌ **NO** `CHANGE_WIFI_STATE` or `BLUETOOTH_ADMIN` private toggling.
@@ -91,6 +99,7 @@ Whether via hands-free voice commands or an accessible manual text bar, SAARTHI 
 - **Minimal Manifest Profile:**
   - `RECORD_AUDIO`: Voice input recognition.
   - `ACCESS_NETWORK_STATE`: Honest offline/airplane-mode detection.
+  - `INTERNET`: Optional user-consented HTTPS AI requests.
   - `FOREGROUND_SERVICE` & `FOREGROUND_SERVICE_MICROPHONE`: Background assistant service.
   - `POST_NOTIFICATIONS`: Android 13+ foreground service status and timer completion alerts.
 
@@ -111,6 +120,8 @@ SAARTHI Android Architecture
 │   ├── TimerController (Stateful Coroutine Countdown Engine & Debouncer)
 │   ├── DeviceHardwareController (Battery Broadcast & Camera Torch Mode)
 │   ├── AppLauncher & CalculatorLauncher (Multi-Tier OEM Intent Resolver)
+│   ├── HybridRequestRouter (Local-First Classification, Privacy Gate & Optional AI)
+│   ├── ConversationMemory (On-Device AI Turns, Context Sharing Opt-In)
 │   └── HelpRegistry (Central Capability Directory)
 └── Voice & Platform Layer
     ├── AndroidSpeechEngine (Platform Offline ASR)

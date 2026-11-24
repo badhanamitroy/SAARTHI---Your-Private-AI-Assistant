@@ -1,13 +1,17 @@
 package com.saarthi.assistant.voice
 
 import android.content.Context
+import android.os.Handler
+import android.os.Looper
 import android.speech.tts.TextToSpeech
 import android.speech.tts.UtteranceProgressListener
 import java.util.Locale
 
 class TextToSpeechEngine(
     context: Context
-) : TextToSpeech.OnInitListener {
+) : TextToSpeech.OnInitListener, SpeechSynthesizer {
+
+    private val mainHandler = Handler(Looper.getMainLooper())
 
     private var textToSpeech: TextToSpeech? = try {
         TextToSpeech(context.applicationContext, this)
@@ -16,10 +20,16 @@ class TextToSpeechEngine(
     }
 
     private var initialized = false
+    private var watchdogRunnable: Runnable? = null
 
-    var onSpeechStart: (() -> Unit)? = null
-    var onSpeechDone: (() -> Unit)? = null
-    var onSpeechError: ((String) -> Unit)? = null
+    override var onSpeechStart: (() -> Unit)? = null
+    override var onSpeechDone: (() -> Unit)? = null
+    override var onSpeechError: ((String) -> Unit)? = null
+
+    private fun cancelWatchdog() {
+        watchdogRunnable?.let { mainHandler.removeCallbacks(it) }
+        watchdogRunnable = null
+    }
 
     override fun onInit(status: Int) {
         val tts = textToSpeech
@@ -35,65 +45,122 @@ class TextToSpeechEngine(
                     object : UtteranceProgressListener() {
 
                         override fun onStart(utteranceId: String?) {
-                            onSpeechStart?.invoke()
+                            mainHandler.post {
+                                onSpeechStart?.invoke()
+                            }
                         }
 
                         override fun onDone(utteranceId: String?) {
-                            onSpeechDone?.invoke()
+                            mainHandler.post {
+                                cancelWatchdog()
+                                onSpeechDone?.invoke()
+                            }
                         }
 
                         @Deprecated("Deprecated in Java")
                         override fun onError(utteranceId: String?) {
-                            onSpeechError?.invoke("Audio playback error.")
+                            mainHandler.post {
+                                cancelWatchdog()
+                                onSpeechError?.invoke("Audio playback error.")
+                            }
                         }
 
                         override fun onError(utteranceId: String?, errorCode: Int) {
-                            onSpeechError?.invoke("Audio playback error ($errorCode).")
+                            mainHandler.post {
+                                cancelWatchdog()
+                                onSpeechError?.invoke("Audio playback error ($errorCode).")
+                            }
                         }
 
                         override fun onStop(utteranceId: String?, interrupted: Boolean) {
-                            onSpeechDone?.invoke()
+                            mainHandler.post {
+                                cancelWatchdog()
+                                onSpeechDone?.invoke()
+                            }
                         }
                     }
                 )
             } catch (_: Throwable) {
                 initialized = false
-                onSpeechError?.invoke("Text-to-speech initialization failed.")
+                mainHandler.post {
+                    cancelWatchdog()
+                    onSpeechError?.invoke("Text-to-speech initialization failed.")
+                }
             }
         } else {
             initialized = false
-            onSpeechError?.invoke("Text-to-speech initialization failed.")
+            mainHandler.post {
+                cancelWatchdog()
+                onSpeechError?.invoke("Text-to-speech initialization failed.")
+            }
         }
     }
 
-    fun isInitialized(): Boolean = initialized
+    override fun isInitialized(): Boolean = initialized
 
-    fun speak(text: String) {
+    override fun speak(text: String) {
+        if (text.isBlank()) {
+            mainHandler.post {
+                cancelWatchdog()
+                onSpeechDone?.invoke()
+            }
+            return
+        }
+
         val tts = textToSpeech
-        if (!initialized || tts == null || text.isBlank()) {
+        if (!initialized || tts == null) {
+            mainHandler.post {
+                cancelWatchdog()
+                onSpeechError?.invoke("Text-to-speech engine is not initialized.")
+            }
             return
         }
 
         try {
             val speechText = SpeechPronunciationFormatter.formatForSpeech(text)
 
-            tts.speak(
+            cancelWatchdog()
+            val timeoutMs = (speechText.length * 120L).coerceIn(4000L, 25000L)
+            val watchdog = Runnable {
+                watchdogRunnable = null
+                onSpeechDone?.invoke()
+            }
+            watchdogRunnable = watchdog
+            mainHandler.postDelayed(watchdog, timeoutMs)
+
+            val status = tts.speak(
                 speechText,
                 TextToSpeech.QUEUE_FLUSH,
                 null,
                 "SAARTHI_RESPONSE"
             )
-        } catch (_: Throwable) {}
+
+            if (status != TextToSpeech.SUCCESS) {
+                cancelWatchdog()
+                mainHandler.post {
+                    onSpeechError?.invoke("TTS failed to queue utterance.")
+                }
+            }
+        } catch (e: Throwable) {
+            cancelWatchdog()
+            mainHandler.post {
+                onSpeechError?.invoke("Audio playback error: ${e.message}")
+            }
+        }
     }
 
-    fun stop() {
+    override fun stop() {
+        cancelWatchdog()
         try {
             textToSpeech?.stop()
         } catch (_: Throwable) {}
-        onSpeechDone?.invoke()
+        mainHandler.post {
+            onSpeechDone?.invoke()
+        }
     }
 
-    fun release() {
+    override fun release() {
+        cancelWatchdog()
         try {
             textToSpeech?.stop()
             textToSpeech?.shutdown()

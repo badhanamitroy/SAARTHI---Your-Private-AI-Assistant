@@ -782,29 +782,32 @@ class CommandEngineTest {
     // ---------------------------------------------------------
 
     @Test
-    fun directToggleRequests_askForClarificationAndExplainPolicy() {
-        val toggleWifiQueries = listOf("turn on wifi", "turn off wifi", "wifi on koro", "ওয়াইফাই অন করো")
+    fun directToggleRequests_routeToOpenSystemSettingsWithDirectToggleFlag() {
+        val toggleWifiQueries = listOf("turn on wifi", "turn off wifi", "wifi on koro", "ওয়াইফাই অন করো", "Turn off Wi-Fi", "Turn Wi-Fi off", "Wi-Fi off koro", "ওয়াইফাই বন্ধ করো")
         for (q in toggleWifiQueries) {
             val result = commandEngine.process(q)
-            assertTrue("Expected clarification for Wi-Fi toggle request: $q", result is CommandResult.Clarification)
-            val question = (result as CommandResult.Clarification).question
-            assertTrue("Expected explanation about opening settings in: $question", question.contains("settings"))
+            assertTrue("Expected OpenSystemSettings for Wi-Fi toggle request: $q, got: $result", result is CommandResult.OpenSystemSettings)
+            val settings = result as CommandResult.OpenSystemSettings
+            assertEquals("Expected WIFI setting for: $q", SystemSettingType.WIFI, settings.settingType)
+            assertTrue("Expected isDirectToggleAttempt = true for: $q", settings.isDirectToggleAttempt)
         }
 
         val toggleBtQueries = listOf("turn on bluetooth", "turn off bluetooth", "bluetooth off koro", "ব্লুটুথ বন্ধ করো")
         for (q in toggleBtQueries) {
             val result = commandEngine.process(q)
-            assertTrue("Expected clarification for Bluetooth toggle request: $q", result is CommandResult.Clarification)
-            val question = (result as CommandResult.Clarification).question
-            assertTrue("Expected explanation about opening settings in: $question", question.contains("settings"))
+            assertTrue("Expected OpenSystemSettings for Bluetooth toggle request: $q", result is CommandResult.OpenSystemSettings)
+            val settings = result as CommandResult.OpenSystemSettings
+            assertEquals(SystemSettingType.BLUETOOTH, settings.settingType)
+            assertTrue(settings.isDirectToggleAttempt)
         }
 
         val toggleDataQueries = listOf("turn on mobile data", "turn off data", "mobile data on koro")
         for (q in toggleDataQueries) {
             val result = commandEngine.process(q)
-            assertTrue("Expected clarification for Data toggle request: $q", result is CommandResult.Clarification)
-            val question = (result as CommandResult.Clarification).question
-            assertTrue("Expected explanation about opening settings in: $question", question.contains("settings"))
+            assertTrue("Expected OpenSystemSettings for Data toggle request: $q", result is CommandResult.OpenSystemSettings)
+            val settings = result as CommandResult.OpenSystemSettings
+            assertEquals(SystemSettingType.MOBILE_DATA, settings.settingType)
+            assertTrue(settings.isDirectToggleAttempt)
         }
     }
 
@@ -948,5 +951,153 @@ class CommandEngineTest {
         val sText = (settingsHelp as CommandResult.Reply).text
         assertTrue(sText.contains("Settings"))
         assertTrue(sText.contains("Wi-Fi settings kholo"))
+    }
+
+    // ---------------------------------------------------------
+    // 22. Stage 3C Voice Reliability, Context Continuity & Follow-Up Tests
+    // ---------------------------------------------------------
+
+    @Test
+    fun stage3c_timerFollowUp_resolvesDurationCorrectly() {
+        // Step 1: User says "Start a timer"
+        val startResult = commandEngine.process("Start a timer")
+        assertTrue("Expected Clarification for 'Start a timer': $startResult", startResult is CommandResult.Clarification)
+        val question = (startResult as CommandResult.Clarification).question
+        assertTrue(question.contains("How long", ignoreCase = true))
+
+        // Step 2: Context stores pending timer
+        val context = ConversationContext()
+        context.setPendingTimer("Start a timer")
+        assertTrue(context.hasActiveFollowUp())
+
+        // Step 3: User answers "5 minutes"
+        val followUpResult = commandEngine.process("5 minutes", context)
+        assertTrue("Expected SetTimer for '5 minutes', got: $followUpResult", followUpResult is CommandResult.SetTimer)
+        assertEquals(300L, (followUpResult as CommandResult.SetTimer).durationSeconds)
+        // Context should be cleared after successful follow-up resolution
+        assertTrue(!context.hasActiveFollowUp())
+    }
+
+    @Test
+    fun stage3c_timerFollowUp_bengaliDuration_resolvesCorrectly() {
+        val context = ConversationContext()
+        context.setPendingTimer("timer lagao")
+
+        // User answers in Bangla: "পাঁচ মিনিট"
+        val followUpResult = commandEngine.process("পাঁচ মিনিট", context)
+        assertTrue("Expected SetTimer for 'পাঁচ মিনিট', got: $followUpResult", followUpResult is CommandResult.SetTimer)
+        assertEquals(300L, (followUpResult as CommandResult.SetTimer).durationSeconds)
+    }
+
+    @Test
+    fun stage3c_timerFollowUp_halfHourAndHours_resolvesCorrectly() {
+        val ctx1 = ConversationContext().apply { setPendingTimer("set timer") }
+        val r1 = commandEngine.process("half an hour", ctx1)
+        assertTrue(r1 is CommandResult.SetTimer)
+        assertEquals(1800L, (r1 as CommandResult.SetTimer).durationSeconds)
+
+        val ctx2 = ConversationContext().apply { setPendingTimer("set timer") }
+        val r2 = commandEngine.process("adha ghonta", ctx2)
+        assertTrue(r2 is CommandResult.SetTimer)
+        assertEquals(1800L, (r2 as CommandResult.SetTimer).durationSeconds)
+
+        val ctx3 = ConversationContext().apply { setPendingTimer("set timer") }
+        val r3 = commandEngine.process("1 hour", ctx3)
+        assertTrue(r3 is CommandResult.SetTimer)
+        assertEquals(3600L, (r3 as CommandResult.SetTimer).durationSeconds)
+    }
+
+    @Test
+    fun stage3c_timerFollowUp_standaloneNumber_defaultsToMinutes() {
+        val context = ConversationContext()
+        context.setPendingTimer("set timer")
+
+        val result = commandEngine.process("10", context)
+        assertTrue("Expected SetTimer for standalone '10', got: $result", result is CommandResult.SetTimer)
+        assertEquals(600L, (result as CommandResult.SetTimer).durationSeconds)
+    }
+
+    @Test
+    fun stage3c_timerFollowUp_cancellationPhrases_clearsContext() {
+        val cancelPhrases = listOf("cancel", "stop", "বাদ দাও", "বাতিল", "lagbe na")
+        for (phrase in cancelPhrases) {
+            val context = ConversationContext().apply { setPendingTimer("set timer") }
+            val result = commandEngine.process(phrase, context)
+            assertTrue("Expected CancelTimer for '$phrase', got: $result", result is CommandResult.CancelTimer)
+            assertTrue("Context should be cleared after cancellation", !context.hasActiveFollowUp())
+        }
+    }
+
+    @Test
+    fun stage3c_timerFollowUp_unrelatedCommand_clearsContextAndRoutesProperly() {
+        // Scenario F: User asks unrelated command while timer follow-up is pending
+        val context = ConversationContext().apply { setPendingTimer("set timer") }
+
+        val timeResult = commandEngine.process("what time is it", context)
+        assertTrue("Expected time reply, got: $timeResult", timeResult is CommandResult.Reply)
+        val timeText = (timeResult as CommandResult.Reply).text
+        assertTrue("Expected current time text: $timeText", timeText.contains("The current time is", ignoreCase = true))
+        assertTrue("Context should be cleared after unrelated command", !context.hasActiveFollowUp())
+
+        // Another test: battery command during pending timer
+        val context2 = ConversationContext().apply { setPendingTimer("set timer") }
+        val batteryResult = commandEngine.process("battery koto ache?", context2)
+        assertTrue("Expected GetBatteryStatus, got: $batteryResult", batteryResult is CommandResult.GetBatteryStatus)
+        assertTrue("Context should be cleared after unrelated command", !context2.hasActiveFollowUp())
+    }
+
+    @Test
+    fun stage3c_timerFollowUp_timeout_expiresAndDoesNotHijack() {
+        val context = ConversationContext()
+        // Simulate a pending timer created 35 seconds ago
+        context.setPendingTimer("set timer", currentTimeMs = 1000L)
+        assertTrue("Should be expired at t = 36000L", context.isExpired(currentTimeMs = 36000L))
+
+        // When expired, process at currentTimeMs = 36000L will see expired context and clear it
+        val result = commandEngine.process("5 minutes", context)
+        // Without active context, "5 minutes" is not recognized as a standalone timer command (requires "timer" keyword)
+        assertTrue("Without context, '5 minutes' requires online AI: $result", result is CommandResult.NeedsOnlineAI)
+    }
+
+    @Test
+    fun stage3c_requiredCommandVariations_routeCorrectly() {
+        // Turn off Wi-Fi / Turn Wi-Fi off / Wi-Fi settings / ওয়াইফাই বন্ধ করো / Wi-Fi off koro
+        val wifiOffVariations = listOf(
+            "Turn off Wi-Fi",
+            "Turn Wi-Fi off",
+            "ওয়াইফাই বন্ধ করো",
+            "Wi-Fi off koro",
+            "turn off wifi"
+        )
+        for (q in wifiOffVariations) {
+            val r = commandEngine.process(q)
+            assertTrue("Expected OpenSystemSettings for '$q', got: $r", r is CommandResult.OpenSystemSettings)
+            val settings = r as CommandResult.OpenSystemSettings
+            assertEquals("Expected WIFI setting for '$q'", SystemSettingType.WIFI, settings.settingType)
+            assertTrue("Expected isDirectToggleAttempt = true for '$q'", settings.isDirectToggleAttempt)
+        }
+
+        // Wi-Fi settings
+        val wifiSettingsRes = commandEngine.process("Wi-Fi settings")
+        assertTrue("Expected OpenSystemSettings for 'Wi-Fi settings'", wifiSettingsRes is CommandResult.OpenSystemSettings)
+        assertEquals(SystemSettingType.WIFI, (wifiSettingsRes as CommandResult.OpenSystemSettings).settingType)
+
+        // 5 minute timer dao
+        val daoResult = commandEngine.process("5 minute timer dao")
+        assertTrue("Expected SetTimer for '5 minute timer dao', got: $daoResult", daoResult is CommandResult.SetTimer)
+        assertEquals(300L, (daoResult as CommandResult.SetTimer).durationSeconds)
+
+        // Timer cancel koro
+        val cancelResult = commandEngine.process("Timer cancel koro")
+        assertTrue("Expected CancelTimer for 'Timer cancel koro', got: $cancelResult", cancelResult is CommandResult.CancelTimer)
+
+        // Battery koto ache?
+        val batteryResult = commandEngine.process("Battery koto ache?")
+        assertTrue("Expected GetBatteryStatus for 'Battery koto ache?', got: $batteryResult", batteryResult is CommandResult.GetBatteryStatus)
+
+        // Torch on koro
+        val torchResult = commandEngine.process("Torch on koro")
+        assertTrue("Expected SetFlashlight(true) for 'Torch on koro', got: $torchResult", torchResult is CommandResult.SetFlashlight)
+        assertTrue((torchResult as CommandResult.SetFlashlight).enabled)
     }
 }

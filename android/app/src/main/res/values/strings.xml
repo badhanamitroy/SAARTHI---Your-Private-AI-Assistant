@@ -65,7 +65,7 @@
 
     <!-- Activity & History -->
     <string name="empty_recent_activity">No recent activity yet. Tap a quick action or ask a question to get started.</string>
-    <string name="empty_conversation">Start a conversation with Saarthi. Everything runs private and offline.</string>
+    <string name="empty_conversation">Start a conversation with Saarthi. Your history stays on this device; Cloud AI is optional and off by default.</string>
     <string name="btn_clear_history">Clear</string>
     <string name="dialog_clear_title">Clear History</string>
     <string name="dialog_clear_message">Are you sure you want to clear your local interaction history?</string>
@@ -98,7 +98,7 @@
     <string name="pref_theme_system">Follow System</string>
     <string name="pref_group_privacy">Privacy &amp; Data</string>
     <string name="pref_privacy_policy">Private by Design</string>
-    <string name="pref_privacy_desc">All commands, speech transcription, and math calculations execute 100% on-device. No personal audio or text is sent to the cloud.</string>
+    <string name="pref_privacy_desc">Device commands, speech recognition, and math run on this device. Optional Cloud AI is off by default; if enabled, general question text can be sent to your HTTPS endpoint.</string>
     <string name="pref_permissions">Permissions</string>
     <string name="pref_permissions_desc">Microphone &amp; Notifications</string>
     <string name="pref_group_about">About</string>
@@ -133,4 +133,36 @@
     <string name="help_subtitle">Explore what SAARTHI can do offline in English, Banglish, &amp; Bangla</string>
     <string name="help_search_hint">Search commands or topics…</string>
     <string name="help_tab_all">All</string>
+
+    <!-- Stage 4 & 4.1: Hands-Free Calling & Smart Caller Awareness -->
+    <string name="pref_group_calling">Hands-Free Calling &amp; Caller Awareness</string>
+    <string name="pref_caller_announcement">Smart Caller Announcement</string>
+    <string name="pref_caller_announcement_desc">Automatically announce incoming caller name or number aloud when phone rings</string>
+    <string name="pref_speaker_announcement">Phone Speaker Announcement</string>
+    <string name="pref_speaker_announcement_desc">Play caller announcement through phone speaker by default when no headset is connected</string>
+    <string name="pref_earbuds_announcement">Earbuds &amp; Headset Announcement</string>
+    <string name="pref_earbuds_announcement_desc">Play caller announcement through connected wired headphones or Bluetooth earbuds</string>
+    <string name="pref_earbuds_only">Earbuds-Only Announcement</string>
+    <string name="pref_earbuds_only_desc">Keep speaker quiet and only announce when wired or Bluetooth earbuds are connected (ideal for buses and public transit)</string>
+    <string name="pref_voice_call_control">Voice Call Control</string>
+    <string name="pref_voice_call_control_desc">Say \"Answer\" or \"Reject\" to control incoming calls hands-free</string>
+    <string name="pref_announce_unknown">Announce Unknown Numbers</string>
+    <string name="pref_announce_unknown_desc">Announce \"Unknown number is calling\" when caller is not in contacts</string>
+    <string name="pref_calling_permissions">Phone &amp; Contacts Permissions</string>
+
+    <!-- OpenJarvis-inspired local-first conversational AI -->
+    <string name="pref_cloud_ai">Optional Cloud AI</string>
+    <string name="pref_cloud_ai_desc">Off by default. Enable it to answer general questions outside SAARTHI’s offline tools.</string>
+    <string name="pref_cloud_ai_enabled_desc">General questions may be sent as text to your configured HTTPS endpoint. Device actions stay local.</string>
+    <string name="pref_cloud_endpoint">Cloud AI HTTPS endpoint</string>
+    <string name="pref_cloud_endpoint_desc">Enter your secure proxy URL ending in /api/chat. Requests stay disabled until a valid endpoint is saved.</string>
+    <string name="pref_cloud_endpoint_placeholder">https://your-proxy.example/api/chat</string>
+    <string name="pref_cloud_endpoint_saved">Endpoint saved.</string>
+    <string name="pref_cloud_endpoint_error">Enter a full HTTPS URL or leave blank.</string>
+    <string name="pref_cloud_context">Share recent AI chat context</string>
+    <string name="pref_cloud_context_desc">Off by default. Only recent AI questions and answers are included; device commands are excluded.</string>
+    <string name="dialog_cloud_consent_title">Enable optional Cloud AI?</string>
+    <string name="dialog_cloud_consent_message">General questions are sent as text over HTTPS to the endpoint you configure. Microphone audio, contacts, call details, and device commands are not sent. Recent AI chat context is shared only if you separately turn it on here in Settings.</string>
+    <string name="btn_cloud_consent">Agree and enable</string>
+    <string name="btn_save">Save</string>
 </resources>

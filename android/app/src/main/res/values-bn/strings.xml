@@ -65,7 +65,7 @@
 
     <!-- Activity & History -->
     <string name="empty_recent_activity">এখনো কোনো সাম্প্রতিক কাজ নেই। একটি বাটন চাপুন বা প্রশ্ন করুন।</string>
-    <string name="empty_conversation">সারথির সাথে কথোপকথন শুরু করুন। সবকিছু অফলাইনে ও নিরাপদে ঘটে।</string>
+    <string name="empty_conversation">সারথির সাথে কথা শুরু করুন। কথোপকথনের ইতিহাস এই ডিভাইসেই থাকে; ঐচ্ছিক ক্লাউড AI ডিফল্টভাবে বন্ধ।</string>
     <string name="btn_clear_history">মুছুন</string>
     <string name="dialog_clear_title">ইতিহাস মুছুন</string>
     <string name="dialog_clear_message">আপনি কি আপনার স্থানীয় কার্যকলাপের ইতিহাস মুছে ফেলতে চান?</string>
@@ -98,7 +98,7 @@
     <string name="pref_theme_system">সিস্টেম ডিফল্ট</string>
     <string name="pref_group_privacy">গোপনীয়তা ও ডেটা</string>
     <string name="pref_privacy_policy">সুরক্ষায় ব্যক্তিগত</string>
-    <string name="pref_privacy_desc">সমস্ত কমান্ড, ভয়েস ও হিসাব ডিভাইসেই সংরক্ষিত হয়। কোনো ব্যক্তিগত তথ্য ক্লাউডে পাঠানো হয় না।</string>
+    <string name="pref_privacy_desc">ডিভাইস কমান্ড, ভয়েস শনাক্তকরণ ও হিসাব এই ডিভাইসেই চলে। ঐচ্ছিক ক্লাউড AI ডিফল্টভাবে বন্ধ; চালু করলে সাধারণ প্রশ্নের লেখা আপনার HTTPS ঠিকানায় পাঠানো হতে পারে।</string>
     <string name="pref_permissions">অনুমতিসমূহ</string>
     <string name="pref_permissions_desc">মাইক্রোফোন ও নোটিফিকেশন</string>
     <string name="pref_group_about">পরিচিতি</string>
@@ -133,4 +133,36 @@
     <string name="help_subtitle">অফলাইনে ইংরেজি, বাংলিশ ও বাংলায় কী কী করা যাবে</string>
     <string name="help_search_hint">কমান্ড বা বিষয় খুঁজুন…</string>
     <string name="help_tab_all">সকল</string>
+
+    <!-- Stage 4 & 4.1: Hands-Free Calling & Smart Caller Awareness -->
+    <string name="pref_group_calling">হ্যান্ডস-ফ্রি কলিং ও কলার সচেতনতা</string>
+    <string name="pref_caller_announcement">স্মার্ট কলার ঘোষণা</string>
+    <string name="pref_caller_announcement_desc">ফোন বাজার সময় কলারের নাম বা নম্বর মুখে বলে দেবে</string>
+    <string name="pref_speaker_announcement">ফোন স্পিকারে ঘোষণা</string>
+    <string name="pref_speaker_announcement_desc">ইয়ারবাড লাগানো না থাকলে ফোনের স্পিকারে কলারের নাম পড়ে শোনাবে</string>
+    <string name="pref_earbuds_announcement">ইয়ারবাড ও হেডসেটে ঘোষণা</string>
+    <string name="pref_earbuds_announcement_desc">তারযুক্ত হেডফোন বা ব্লুটুথ ইয়ারবাড লাগানো থাকলে তাতে ঘোষণা শোনাবে</string>
+    <string name="pref_earbuds_only">শুধুমাত্র ইয়ারবাডে ঘোষণা</string>
+    <string name="pref_earbuds_only_desc">স্পিকার নীরব রেখে শুধুমাত্র তারযুক্ত বা ব্লুটুথ ইয়ারবাডে ঘোষণা করুন (বাস বা গণপরিবহনের জন্য উপযুক্ত)</string>
+    <string name="pref_voice_call_control">ভয়েস কল নিয়ন্ত্রণ</string>
+    <string name="pref_voice_call_control_desc">মুখে \"Answer\" বা \"Reject\" বলে কল রিসিভ বা কেটে দিন</string>
+    <string name="pref_announce_unknown">অচেনা নম্বরের ঘোষণা</string>
+    <string name="pref_announce_unknown_desc">কন্টাক্ট বুকে নাম না থাকলে \"Unknown number is calling\" ঘোষণা করবে</string>
+    <string name="pref_calling_permissions">ফোন ও কন্টাক্ট অনুমতি</string>
+
+    <!-- OpenJarvis-অনুপ্রাণিত লোকাল-ফার্স্ট কথোপকথনমূলক AI -->
+    <string name="pref_cloud_ai">ঐচ্ছিক ক্লাউড AI</string>
+    <string name="pref_cloud_ai_desc">ডিফল্টভাবে বন্ধ। অফলাইন সুবিধার বাইরের সাধারণ প্রশ্নের উত্তর পেতে চালু করুন।</string>
+    <string name="pref_cloud_ai_enabled_desc">সাধারণ প্রশ্ন আপনার নির্ধারিত HTTPS ঠিকানায় টেক্সট হিসেবে পাঠানো হতে পারে। ডিভাইসের কাজ লোকালেই থাকে।</string>
+    <string name="pref_cloud_endpoint">ক্লাউড AI HTTPS ঠিকানা</string>
+    <string name="pref_cloud_endpoint_desc">/api/chat দিয়ে শেষ হওয়া নিরাপদ প্রোক্সি URL লিখুন। বৈধ ঠিকানা সংরক্ষণ না করা পর্যন্ত অনুরোধ বন্ধ থাকবে।</string>
+    <string name="pref_cloud_endpoint_placeholder">https://your-proxy.example/api/chat</string>
+    <string name="pref_cloud_endpoint_saved">ঠিকানা সংরক্ষিত হয়েছে।</string>
+    <string name="pref_cloud_endpoint_error">সম্পূর্ণ HTTPS ঠিকানা লিখুন অথবা ফাঁকা রাখুন।</string>
+    <string name="pref_cloud_context">সাম্প্রতিক AI কথোপকথন শেয়ার করুন</string>
+    <string name="pref_cloud_context_desc">ডিফল্টভাবে বন্ধ। শুধু সাম্প্রতিক AI প্রশ্ন ও উত্তর যোগ হবে; ডিভাইস কমান্ড নয়।</string>
+    <string name="dialog_cloud_consent_title">ঐচ্ছিক ক্লাউড AI চালু করবেন?</string>
+    <string name="dialog_cloud_consent_message">সাধারণ প্রশ্ন আপনার নির্ধারিত HTTPS ঠিকানায় টেক্সট হিসেবে পাঠানো হবে। মাইক্রোফোনের অডিও, কন্টাক্ট, কলের তথ্য ও ডিভাইস কমান্ড পাঠানো হয় না। সাম্প্রতিক AI কথোপকথন শেয়ার হবে শুধু Settings-এ আলাদাভাবে চালু করলে।</string>
+    <string name="btn_cloud_consent">সম্মতি দিয়ে চালু</string>
+    <string name="btn_save">সংরক্ষণ</string>
 </resources>

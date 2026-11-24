@@ -90,6 +90,25 @@ class SystemSettingsControllerTest {
     }
 
     @Test
+    fun openSetting_directToggleAttempt_returnsHonestGuidanceContract() {
+        SystemSettingsController.customLauncher = object : SystemSettingsLauncher {
+            override fun openSetting(type: SystemSettingType, isDirectToggleAttempt: Boolean): ExecutionContract {
+                return AndroidSystemSettingsLauncher.buildSuccessContract(type, isDirectToggleAttempt)
+            }
+            override fun openSetting(type: SystemSettingType): ExecutionContract {
+                return openSetting(type, false)
+            }
+        }
+
+        val contract = SystemSettingsController.openSetting(null, SystemSettingType.WIFI, isDirectToggleAttempt = true)
+        assertTrue(contract is ExecutionContract.Succeeded)
+        val succeeded = contract as ExecutionContract.Succeeded
+        assertTrue(succeeded.spokenFeedback.contains("Please tap the Wi-Fi toggle"))
+        assertTrue(succeeded.spokenFeedback.contains("Android restricts apps from toggling Wi-Fi directly"))
+        assertTrue(succeeded.displayFeedback.contains("toggle there"))
+    }
+
+    @Test
     fun openSetting_whenLaunchFailsWithNotFound_returnsHonestFailedContract() {
         SystemSettingsController.customLauncher = object : SystemSettingsLauncher {
             override fun openSetting(type: SystemSettingType): ExecutionContract {

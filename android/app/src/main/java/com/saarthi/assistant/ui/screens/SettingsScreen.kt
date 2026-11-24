@@ -24,6 +24,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Switch
 import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Text
@@ -40,6 +41,8 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import com.saarthi.assistant.R
+import com.saarthi.assistant.ai.PrivacySettings
+import com.saarthi.assistant.telephony.CallPreferences
 import com.saarthi.assistant.ui.components.SaarthiEmblem
 import com.saarthi.assistant.ui.components.SaarthiIcons
 import com.saarthi.assistant.ui.theme.DarkBlueGrey
@@ -61,10 +64,28 @@ fun SettingsScreen(
     hasNotificationPermission: Boolean,
     onRequestPermissions: () -> Unit,
     onClearHistory: () -> Unit,
+    callPreferences: CallPreferences = CallPreferences(),
+    onToggleCallerAnnouncement: (Boolean) -> Unit = {},
+    onToggleSpeakerAnnouncement: (Boolean) -> Unit = {},
+    onToggleEarbudsAnnouncement: (Boolean) -> Unit = {},
+    onToggleVoiceCallControl: (Boolean) -> Unit = {},
+    onToggleAnnounceUnknown: (Boolean) -> Unit = {},
+    hasPhonePermissions: Boolean = false,
+    onRequestPhonePermissions: () -> Unit = {},
+    privacySettings: PrivacySettings = PrivacySettings(),
+    onToggleCloudAi: (Boolean) -> Unit = {},
+    onGrantCloudAiConsent: () -> Unit = {},
+    onToggleCloudContext: (Boolean) -> Unit = {},
+    onSaveCloudEndpoint: (String) -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     val context = LocalContext.current
     var showClearConfirm by remember { mutableStateOf(false) }
+    var showCloudConsent by remember { mutableStateOf(false) }
+    var endpointStatusResource by remember { mutableStateOf<Int?>(null) }
+    var endpointDraft by remember(privacySettings.customEndpointUrl) {
+        mutableStateOf(privacySettings.customEndpointUrl)
+    }
 
     Column(
         modifier = modifier
@@ -105,6 +126,91 @@ fun SettingsScreen(
                     checked = isVoiceFeedbackEnabled,
                     onCheckedChange = { onToggleVoiceFeedback() }
                 )
+            }
+
+            Spacer(modifier = Modifier.height(16.dp))
+
+            // Section: Hands-Free Calling & Caller Awareness
+            SettingsSectionHeader(title = stringResource(id = R.string.pref_group_calling))
+
+            SettingsCard {
+                Column {
+                    SettingsSwitchRow(
+                        title = stringResource(id = R.string.pref_caller_announcement),
+                        description = stringResource(id = R.string.pref_caller_announcement_desc),
+                        checked = callPreferences.callerAnnouncementEnabled,
+                        onCheckedChange = { onToggleCallerAnnouncement(it) }
+                    )
+
+                    Spacer(modifier = Modifier.height(12.dp))
+
+                    SettingsSwitchRow(
+                        title = stringResource(id = R.string.pref_speaker_announcement),
+                        description = stringResource(id = R.string.pref_speaker_announcement_desc),
+                        checked = callPreferences.speakerAnnouncementEnabled,
+                        onCheckedChange = { onToggleSpeakerAnnouncement(it) }
+                    )
+
+                    Spacer(modifier = Modifier.height(12.dp))
+
+                    SettingsSwitchRow(
+                        title = stringResource(id = R.string.pref_earbuds_announcement),
+                        description = stringResource(id = R.string.pref_earbuds_announcement_desc),
+                        checked = callPreferences.earbudsAnnouncementEnabled,
+                        onCheckedChange = { onToggleEarbudsAnnouncement(it) }
+                    )
+
+                    Spacer(modifier = Modifier.height(12.dp))
+
+                    SettingsSwitchRow(
+                        title = stringResource(id = R.string.pref_voice_call_control),
+                        description = stringResource(id = R.string.pref_voice_call_control_desc),
+                        checked = callPreferences.voiceCallControlEnabled,
+                        onCheckedChange = { onToggleVoiceCallControl(it) }
+                    )
+
+                    Spacer(modifier = Modifier.height(12.dp))
+
+                    SettingsSwitchRow(
+                        title = stringResource(id = R.string.pref_announce_unknown),
+                        description = stringResource(id = R.string.pref_announce_unknown_desc),
+                        checked = callPreferences.announceUnknownNumbers,
+                        onCheckedChange = { onToggleAnnounceUnknown(it) }
+                    )
+
+                    Spacer(modifier = Modifier.height(14.dp))
+
+                    // Phone & Contacts Permissions status row
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.SpaceBetween
+                    ) {
+                        Column {
+                            Text(
+                                text = stringResource(id = R.string.pref_calling_permissions),
+                                style = MaterialTheme.typography.titleSmall,
+                                color = MaterialTheme.colorScheme.onBackground
+                            )
+                            Text(
+                                text = if (hasPhonePermissions) "Granted" else "Needed for caller name & answer",
+                                style = MaterialTheme.typography.labelSmall,
+                                color = if (hasPhonePermissions) SuccessGreen else ErrorRed
+                            )
+                        }
+
+                        if (!hasPhonePermissions) {
+                            Text(
+                                text = "Grant",
+                                style = MaterialTheme.typography.labelMedium,
+                                color = ElectricCyan,
+                                modifier = Modifier
+                                    .clickable { onRequestPhonePermissions() }
+                                    .padding(6.dp)
+                            )
+                        }
+                    }
+                }
             }
 
             Spacer(modifier = Modifier.height(16.dp))
@@ -158,6 +264,88 @@ fun SettingsScreen(
                             )
                         }
                     }
+
+                    Spacer(modifier = Modifier.height(14.dp))
+
+                    SettingsSwitchRow(
+                        title = stringResource(id = R.string.pref_cloud_ai),
+                        description = if (privacySettings.isCloudAiEnabled) {
+                            stringResource(id = R.string.pref_cloud_ai_enabled_desc)
+                        } else {
+                            stringResource(id = R.string.pref_cloud_ai_desc)
+                        },
+                        checked = privacySettings.isCloudAiEnabled,
+                        onCheckedChange = { enabled ->
+                            if (!enabled || privacySettings.isCloudConsentGranted) {
+                                onToggleCloudAi(enabled)
+                            } else {
+                                showCloudConsent = true
+                            }
+                        }
+                    )
+
+                    Spacer(modifier = Modifier.height(12.dp))
+
+                    Text(
+                        text = stringResource(id = R.string.pref_cloud_endpoint),
+                        style = MaterialTheme.typography.titleSmall,
+                        color = MaterialTheme.colorScheme.onBackground
+                    )
+                    Spacer(modifier = Modifier.height(2.dp))
+                    Text(
+                        text = stringResource(id = R.string.pref_cloud_endpoint_desc),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                    Spacer(modifier = Modifier.height(8.dp))
+                    OutlinedTextField(
+                        value = endpointDraft,
+                        onValueChange = {
+                            endpointDraft = it
+                            endpointStatusResource = null
+                        },
+                        modifier = Modifier.fillMaxWidth(),
+                        singleLine = true,
+                        label = { Text(stringResource(id = R.string.pref_cloud_endpoint)) },
+                        placeholder = { Text(stringResource(id = R.string.pref_cloud_endpoint_placeholder)) }
+                    )
+                    TextButton(
+                        onClick = {
+                            val candidate = endpointDraft.trim()
+                            val uri = Uri.parse(candidate)
+                            if (candidate.isBlank() || (
+                                    uri.scheme.equals("https", ignoreCase = true) &&
+                                        !uri.host.isNullOrBlank()
+                                    )
+                            ) {
+                                onSaveCloudEndpoint(candidate)
+                                endpointStatusResource = R.string.pref_cloud_endpoint_saved
+                            } else {
+                                endpointStatusResource = R.string.pref_cloud_endpoint_error
+                            }
+                        },
+                        modifier = Modifier.align(Alignment.End)
+                    ) {
+                        Text(text = stringResource(id = R.string.btn_save))
+                    }
+                    endpointStatusResource?.let { statusResource ->
+                        Text(
+                            text = stringResource(id = statusResource),
+                            style = MaterialTheme.typography.labelSmall,
+                            color = if (statusResource == R.string.pref_cloud_endpoint_saved) {
+                                SuccessGreen
+                            } else {
+                                ErrorRed
+                            }
+                        )
+                    }
+
+                    SettingsSwitchRow(
+                        title = stringResource(id = R.string.pref_cloud_context),
+                        description = stringResource(id = R.string.pref_cloud_context_desc),
+                        checked = privacySettings.allowConversationContextInCloud,
+                        onCheckedChange = onToggleCloudContext
+                    )
 
                     Spacer(modifier = Modifier.height(14.dp))
 
@@ -312,6 +500,32 @@ fun SettingsScreen(
             },
             dismissButton = {
                 TextButton(onClick = { showClearConfirm = false }) {
+                    Text(text = stringResource(id = R.string.btn_cancel))
+                }
+            },
+            containerColor = ElevatedSurface,
+            titleContentColor = MaterialTheme.colorScheme.onBackground,
+            textContentColor = MaterialTheme.colorScheme.onSurfaceVariant
+        )
+    }
+
+    if (showCloudConsent) {
+        AlertDialog(
+            onDismissRequest = { showCloudConsent = false },
+            title = { Text(text = stringResource(id = R.string.dialog_cloud_consent_title)) },
+            text = { Text(text = stringResource(id = R.string.dialog_cloud_consent_message)) },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        showCloudConsent = false
+                        onGrantCloudAiConsent()
+                    }
+                ) {
+                    Text(text = stringResource(id = R.string.btn_cloud_consent))
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showCloudConsent = false }) {
                     Text(text = stringResource(id = R.string.btn_cancel))
                 }
             },

@@ -36,7 +36,8 @@ sealed class CommandResult {
     ) : CommandResult()
 
     data class OpenSystemSettings(
-        val settingType: SystemSettingType
+        val settingType: SystemSettingType,
+        val isDirectToggleAttempt: Boolean = false
     ) : CommandResult()
 
     data class SetTimer(
@@ -51,6 +52,10 @@ sealed class CommandResult {
     data object CancelTimer : CommandResult()
 
     data object GetTimerStatus : CommandResult()
+
+    data object AnswerCall : CommandResult()
+
+    data object RejectCall : CommandResult()
 
     data object Ignore : CommandResult()
 

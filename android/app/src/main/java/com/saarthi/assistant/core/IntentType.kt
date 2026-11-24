@@ -30,5 +30,7 @@ enum class IntentType {
     TIMER_RESUME,
     TIMER_CANCEL,
     TIMER_STATUS,
+    CALL_ANSWER,
+    CALL_REJECT,
     UNKNOWN
 }

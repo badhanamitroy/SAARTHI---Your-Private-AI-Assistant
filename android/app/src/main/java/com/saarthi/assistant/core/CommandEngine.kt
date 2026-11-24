@@ -6,27 +6,122 @@ import java.util.Locale
 
 class CommandEngine {
 
-    fun process(command: String): CommandResult {
+    fun process(command: String, conversationContext: ConversationContext? = null): CommandResult {
         val rawInput = command.trim()
         if (rawInput.isBlank()) {
             return CommandResult.Reply("I didn't hear anything. Please type or say a command.")
         }
 
+        // Step 1: Normalize recognized speech (including Bengali numerals and number words)
         val normalized = normalizeInput(rawInput)
 
-        // Check for ambiguous single-word / phrase prompts that need clarification
+        // Step 2: Resolve a pending follow-up question, if one exists
+        if (conversationContext != null && conversationContext.hasActiveFollowUp()) {
+            val followUpResult = resolveFollowUp(rawInput, normalized, conversationContext)
+            if (followUpResult != null) {
+                return followUpResult
+            }
+        }
+
+        // Step 3: Check for ambiguous single-word / phrase prompts that need clarification
         val ambiguityClarification = checkAmbiguity(normalized)
         if (ambiguityClarification != null) {
             return CommandResult.Clarification(ambiguityClarification)
         }
 
-        // Check for compound intents (e.g. "what time is it and what is today's date")
+        // Step 4: Check for compound intents (e.g. "what time is it and what is today's date")
         val compoundResult = processCompoundIntents(normalized)
         if (compoundResult != null) {
             return compoundResult
         }
 
-        return evaluateSingleIntent(normalized)
+        return evaluateSingleIntent(normalized, rawInput)
+    }
+
+    private fun resolveFollowUp(
+        rawInput: String,
+        normalized: String,
+        context: ConversationContext
+    ): CommandResult? {
+        when (val pending = context.pendingIntent) {
+            is PendingIntent.TimerDuration -> {
+                // Cancellation check
+                if (isCancellation(normalized)) {
+                    context.clear()
+                    return CommandResult.CancelTimer
+                }
+
+                // Check for duration parameter
+                val durationSeconds = extractTimerSeconds(normalized)
+                if (durationSeconds != null && durationSeconds > 0L) {
+                    context.clear()
+                    if (durationSeconds > TimerController.MAX_TIMER_SECONDS) {
+                        return CommandResult.Reply("Timer duration cannot exceed 24 hours.")
+                    }
+                    return CommandResult.SetTimer(durationSeconds, rawInput)
+                }
+
+                // Check if user issued an unrelated known command
+                if (isUnrelatedKnownCommand(normalized)) {
+                    context.clear()
+                    return null // Falls through to standard command execution
+                }
+
+                // Unrecognized response for timer duration
+                return CommandResult.Clarification("Please specify how long, like 5 minutes, or say cancel to abort.")
+            }
+
+            is PendingIntent.Confirmation -> {
+                if (isAffirmativeConfirmation(normalized)) {
+                    context.clear()
+                    return CommandResult.Reply("Action confirmed.")
+                }
+                if (isNegativeConfirmation(normalized) || isCancellation(normalized)) {
+                    context.clear()
+                    return CommandResult.Reply("Action cancelled.")
+                }
+                if (isUnrelatedKnownCommand(normalized)) {
+                    context.clear()
+                    return null
+                }
+                return CommandResult.Clarification("Please say yes to confirm or cancel to abort.")
+            }
+
+            is PendingIntent.None -> return null
+        }
+    }
+
+    private fun isCancellation(text: String): Boolean {
+        val norm = text.trim().lowercase(Locale.ROOT)
+        return norm in listOf(
+            "cancel", "stop", "nevermind", "abort", "dismiss",
+            "বাদ দাও", "থাক", "দরকার নেই", "বন্ধ করো", "ক্যান্সেল", "বাতিল",
+            "bad dao", "thak", "dorkar nei", "cancel koro", "lagbe na"
+        )
+    }
+
+    private fun isUnrelatedKnownCommand(text: String): Boolean {
+        return isAnswerCallCommand(text) ||
+               isRejectCallCommand(text) ||
+               isBatteryCommand(text) ||
+               isFlashlightOnCommand(text) ||
+               isFlashlightOffCommand(text) ||
+               isWifiSettingsCommand(text) ||
+               isWifiToggleCommand(text) ||
+               isBluetoothSettingsCommand(text) ||
+               isBluetoothToggleCommand(text) ||
+               isMobileDataSettingsCommand(text) ||
+               isMobileDataToggleCommand(text) ||
+               isSoundSettingsCommand(text) ||
+               isBrightnessSettingsCommand(text) ||
+               isOpenCalculatorCommand(text) ||
+               isOpenOtherAppCommand(text) ||
+               isTimeCommand(text) ||
+               isDateCommand(text) ||
+               isGreetingCommand(text) ||
+               isIdentityCommand(text) ||
+               isHelpCommand(text) ||
+               isCalculatorCommand(text)
     }
 
     private fun normalizeInput(input: String): String {
@@ -34,6 +129,23 @@ class CommandEngine {
             .trim()
             .lowercase(Locale.ROOT)
             .trimEnd('.', '?', '!', ',', ';', ':', '"', '\'', '।')
+
+        // Normalize hyphenated wi-fi and spaced wi fi to wifi
+        text = text.replace("wi-fi", "wifi")
+            .replace("wi fi", "wifi")
+            .replace("ওয়াই-ফাই", "ওয়াইফাই")
+
+        // Normalize Bengali numerals to digits
+        text = text.map { ch ->
+            when (ch) {
+                '০' -> '0'; '১' -> '1'; '২' -> '2'; '৩' -> '3'; '৪' -> '4'
+                '৫' -> '5'; '৬' -> '6'; '৭' -> '7'; '৮' -> '8'; '৯' -> '9'
+                else -> ch
+            }
+        }.joinToString("")
+
+        // Normalize number words to digits (Bengali, English, Banglish)
+        text = normalizeNumberWords(text)
 
         // Strip wake-phrase prefixes if followed by a command
         val wakePrefixes = listOf(
@@ -51,6 +163,46 @@ class CommandEngine {
                     break
                 }
             }
+        }
+
+        return text
+    }
+
+    private fun normalizeNumberWords(input: String): String {
+        var text = input
+
+        // Bengali number words
+        val banglaWords = listOf(
+            "এক" to "1", "দুই" to "2", "তিন" to "3", "চার" to "4", "পাঁচ" to "5",
+            "ছয়" to "6", "ছয়" to "6", "সাত" to "7", "আট" to "8", "নয়" to "9", "নয়" to "9",
+            "দশ" to "10", "এগারো" to "11", "বারো" to "12", "তেরো" to "13", "চৌদ্দ" to "14",
+            "পনেরো" to "15", "পনের" to "15", "বিশ" to "20", "কুড়ি" to "20", "কুড়ি" to "20",
+            "পঁচিশ" to "25", "ত্রিশ" to "30", "চল্লিশ" to "40", "পঞ্চাশ" to "50", "ষাট" to "60"
+        )
+        for ((word, digit) in banglaWords) {
+            text = text.replace(Regex("(?<=^|\\s)$word(?=$|\\s|[.,!?])"), digit)
+        }
+
+        // English number words
+        val englishWords = listOf(
+            "one" to "1", "two" to "2", "three" to "3", "four" to "4", "five" to "5",
+            "six" to "6", "seven" to "7", "eight" to "8", "nine" to "9", "ten" to "10",
+            "eleven" to "11", "twelve" to "12", "thirteen" to "13", "fourteen" to "14",
+            "fifteen" to "15", "twenty" to "20", "twenty-five" to "25", "twenty five" to "25",
+            "thirty" to "30", "forty" to "40", "forty-five" to "45", "fifty" to "50", "sixty" to "60"
+        )
+        for ((word, digit) in englishWords) {
+            text = text.replace(Regex("\\b$word\\b"), digit)
+        }
+
+        // Banglish number words
+        val banglishWords = listOf(
+            "ek" to "1", "dui" to "2", "tin" to "3", "char" to "4", "panch" to "5", "pach" to "5",
+            "choy" to "6", "saat" to "7", "aat" to "8", "noy" to "9", "dosh" to "10",
+            "ponero" to "15", "bish" to "20", "trish" to "30"
+        )
+        for ((word, digit) in banglishWords) {
+            text = text.replace(Regex("\\b$word\\b"), digit)
         }
 
         return text
@@ -98,37 +250,6 @@ class CommandEngine {
         if (stripped == "flashlight" || stripped == "torch" || stripped == "flash light" ||
             input == "ফ্ল্যাশলাইট" || input == "টর্চ") {
             return "Did you want to turn on or turn off the flashlight?"
-        }
-
-        // Direct toggle requests for restricted system settings
-        if (stripped in listOf(
-                "turn on wifi", "turn off wifi", "wifi on", "wifi off", "enable wifi", "disable wifi",
-                "wifi on koro", "wifi off koro", "switch on wifi", "switch off wifi"
-            ) || input in listOf(
-                "ওয়াইফাই অন করো", "ওয়াইফাই বন্ধ করো", "ওয়াইফাই চালু করো", "ওয়াইফাই অফ করো"
-            )
-        ) {
-            return "SAARTHI cannot toggle Wi-Fi directly due to Android system restrictions. Would you like to open Wi-Fi settings instead?"
-        }
-
-        if (stripped in listOf(
-                "turn on bluetooth", "turn off bluetooth", "bluetooth on", "bluetooth off", "enable bluetooth", "disable bluetooth",
-                "bluetooth on koro", "bluetooth off koro", "switch on bluetooth", "switch off bluetooth"
-            ) || input in listOf(
-                "ব্লুটুথ অন করো", "ব্লুটুথ বন্ধ করো", "ব্লুটুথ চালু করো", "ব্লুটুথ অফ করো"
-            )
-        ) {
-            return "SAARTHI cannot toggle Bluetooth directly due to Android system restrictions. Would you like to open Bluetooth settings instead?"
-        }
-
-        if (stripped in listOf(
-                "turn on mobile data", "turn off mobile data", "turn on data", "turn off data", "mobile data on", "mobile data off",
-                "data on koro", "mobile data on koro", "data off koro", "mobile data off koro"
-            ) || input in listOf(
-                "মোবাইল ডাটা অন করো", "মোবাইল ডাটা বন্ধ করো", "ডাটা অন করো", "ডাটা অফ করো"
-            )
-        ) {
-            return "SAARTHI cannot toggle mobile data directly due to Android system restrictions. Would you like to open Mobile Network settings instead?"
         }
 
         // Timer ambiguity without duration
@@ -192,6 +313,8 @@ class CommandEngine {
                 is CommandResult.ResumeTimer -> return partResult
                 is CommandResult.CancelTimer -> return partResult
                 is CommandResult.GetTimerStatus -> return partResult
+                is CommandResult.AnswerCall -> return partResult
+                is CommandResult.RejectCall -> return partResult
                 is CommandResult.WakeWordAcknowledged -> return partResult
                 is CommandResult.Ignore -> return null
                 is CommandResult.NeedsOnlineAI -> {
@@ -208,7 +331,18 @@ class CommandEngine {
         return null
     }
 
-    private fun evaluateSingleIntent(cleaned: String): CommandResult {
+    private fun evaluateSingleIntent(cleaned: String, rawInput: String = cleaned): CommandResult {
+        // Direct Settings Toggle Requests (must execute panel launch with truthful feedback)
+        if (isWifiToggleCommand(cleaned)) {
+            return CommandResult.OpenSystemSettings(SystemSettingType.WIFI, isDirectToggleAttempt = true)
+        }
+        if (isBluetoothToggleCommand(cleaned)) {
+            return CommandResult.OpenSystemSettings(SystemSettingType.BLUETOOTH, isDirectToggleAttempt = true)
+        }
+        if (isMobileDataToggleCommand(cleaned)) {
+            return CommandResult.OpenSystemSettings(SystemSettingType.MOBILE_DATA, isDirectToggleAttempt = true)
+        }
+
         val intent = detectIntent(cleaned)
 
         return when (intent) {
@@ -345,6 +479,14 @@ class CommandEngine {
                 CommandResult.GetTimerStatus
             }
 
+            IntentType.CALL_ANSWER -> {
+                CommandResult.AnswerCall
+            }
+
+            IntentType.CALL_REJECT -> {
+                CommandResult.RejectCall
+            }
+
             IntentType.UNKNOWN -> {
                 CommandResult.NeedsOnlineAI
             }
@@ -431,7 +573,8 @@ class CommandEngine {
     }
 
     private fun extractTimerSeconds(input: String): Long? {
-        val text = input.map { ch ->
+        val normalizedNumbers = normalizeNumberWords(input)
+        val text = normalizedNumbers.map { ch ->
             when (ch) {
                 '০' -> '0'; '১' -> '1'; '২' -> '2'; '৩' -> '3'; '৪' -> '4'
                 '৫' -> '5'; '৬' -> '6'; '৭' -> '7'; '৮' -> '8'; '৯' -> '9'
@@ -467,7 +610,8 @@ class CommandEngine {
         }
 
         // Special word forms: "half an hour" -> 30 mins
-        if (!foundAny && text.contains("half an hour")) {
+        if (!foundAny && (text.contains("half an hour") || text.contains("half hour") ||
+            text.contains("adha ghonta") || text.contains("আধা ঘণ্টা") || text.contains("আধা ঘন্টা"))) {
             totalSeconds = 1800L
             foundAny = true
         }
@@ -480,6 +624,18 @@ class CommandEngine {
                 val mins = fallbackMatch.groupValues[1].toLongOrNull() ?: 0L
                 totalSeconds = mins * 60
                 foundAny = true
+            }
+        }
+
+        if (!foundAny) {
+            // Standalone digit like "5" or "10" (common short reply to follow-up)
+            val standaloneRegex = Regex("^(\\d+)$")
+            standaloneRegex.find(text.trim())?.let {
+                val mins = it.groupValues[1].toLongOrNull() ?: 0L
+                if (mins > 0) {
+                    totalSeconds = mins * 60
+                    foundAny = true
+                }
             }
         }
 
@@ -498,6 +654,15 @@ class CommandEngine {
             // Stop speaking
             isStopSpeakingCommand(cleaned) -> {
                 IntentType.STOP_SPEAKING
+            }
+
+            // Voice Call Answering & Rejection (takes priority over general outgoing calls)
+            isAnswerCallCommand(cleaned) -> {
+                IntentType.CALL_ANSWER
+            }
+
+            isRejectCallCommand(cleaned) -> {
+                IntentType.CALL_REJECT
             }
 
             // Sensitive actions requiring explicit confirmation (e.g. calls, data wipe)
@@ -538,15 +703,15 @@ class CommandEngine {
             }
 
             // Specific System Settings Panels (check before generic settings app launch)
-            isWifiSettingsCommand(cleaned) -> {
+            isWifiToggleCommand(cleaned) || isWifiSettingsCommand(cleaned) -> {
                 IntentType.SYSTEM_SETTINGS_WIFI
             }
 
-            isBluetoothSettingsCommand(cleaned) -> {
+            isBluetoothToggleCommand(cleaned) || isBluetoothSettingsCommand(cleaned) -> {
                 IntentType.SYSTEM_SETTINGS_BLUETOOTH
             }
 
-            isMobileDataSettingsCommand(cleaned) -> {
+            isMobileDataToggleCommand(cleaned) || isMobileDataSettingsCommand(cleaned) -> {
                 IntentType.SYSTEM_SETTINGS_MOBILE_DATA
             }
 
@@ -1152,12 +1317,43 @@ class CommandEngine {
         return patterns.any { it.matches(normalized) }
     }
 
+    private fun isWifiToggleCommand(text: String): Boolean {
+        val lower = text.lowercase().trim()
+        val englishMatches = listOf(
+            "turn off wifi", "turn wifi off", "turn on wifi", "turn wifi on",
+            "switch off wifi", "switch on wifi", "disable wifi", "enable wifi",
+            "wifi off", "wifi on", "toggle wifi", "turn off the wifi", "turn on the wifi",
+            "switch off the wifi", "switch on the wifi"
+        )
+        if (englishMatches.contains(lower)) return true
+
+        val banglishMatches = listOf(
+            "wifi off koro", "wifi on koro", "wifi bondho koro", "wifi chalu koro",
+            "wifi off kor", "wifi on kor", "wifi bandho koro", "wifi bandh koro"
+        )
+        if (banglishMatches.contains(lower)) return true
+
+        val banglaMatches = listOf(
+            "ওয়াইফাই বন্ধ করো", "ওয়াইফাই অন করো", "ওয়াইফাই অফ করো", "ওয়াইফাই চালু করো",
+            "ওয়াইফাই বন্ধ কর", "ওয়াইফাই অফ", "ওয়াইফাই অন", "ওয়াইফাই বন্ধ"
+        )
+        if (banglaMatches.contains(lower)) return true
+
+        val patterns = listOf(
+            Regex("^(please )?(turn |switch )?(off |on )?(the )?wifi( off| on)?( please)?$"),
+            Regex("^(please )?wifi (off|on|off koro|on koro|bondho koro|chalu koro)( please)?$"),
+            Regex("^(ওয়াইফাই) (বন্ধ করো|অন করো|অফ করো|চালু করো|অফ|অন)$")
+        )
+        return patterns.any { it.matches(lower) }
+    }
+
     private fun isWifiSettingsCommand(text: String): Boolean {
         val lower = text.lowercase().trim()
         val englishMatches = listOf(
             "open wifi settings", "open wi-fi settings", "wifi settings", "wi-fi settings",
             "open wifi", "open wi-fi", "wifi panel", "internet panel", "show wifi settings",
-            "show wi-fi settings", "open wifi panel", "show wifi", "open wi fi settings"
+            "show wi-fi settings", "open wifi panel", "show wifi", "open wi fi settings",
+            "wifi", "wi-fi", "wi fi"
         )
         if (englishMatches.contains(lower)) return true
 
@@ -1169,14 +1365,43 @@ class CommandEngine {
 
         val banglaMatches = listOf(
             "ওয়াইফাই সেটিংস খোলো", "ওয়াইফাই খোলো", "ওয়াই-ফাই সেটিংস খোলো",
-            "ওয়াইফাই সেটিংস", "ওয়াই-ফাই খোলো"
+            "ওয়াইফাই সেটিংস", "ওয়াই-ফাই খোলো", "ওয়াইফাই", "ওয়াই-ফাই"
         )
         if (banglaMatches.contains(lower)) return true
 
         val patterns = listOf(
-            Regex("^(please )?(open|show|launch)( the| my)? (wi-?fi|internet)( settings?| panel)?( please)?$"),
-            Regex("^(please )?(wi-?fi|internet) (settings? )?(kholo|open karo|chalu karo)( please)?$"),
-            Regex("^(ওয়াই-?ফাই) (সেটিংস )?(খোলো|অন করো|চালু করো)$")
+            Regex("^(please )?(open|show|launch)( the| my)? (wifi|internet)( settings?| panel)?( please)?$"),
+            Regex("^(please )?(wifi|internet) (settings? )?(kholo|open karo|chalu karo)( please)?$"),
+            Regex("^(ওয়াইফাই) (সেটিংস )?(খোলো|চালু করো)$")
+        )
+        return patterns.any { it.matches(lower) }
+    }
+
+    private fun isBluetoothToggleCommand(text: String): Boolean {
+        val lower = text.lowercase().trim()
+        val englishMatches = listOf(
+            "turn off bluetooth", "turn bluetooth off", "turn on bluetooth", "turn bluetooth on",
+            "switch off bluetooth", "switch on bluetooth", "disable bluetooth", "enable bluetooth",
+            "bluetooth off", "bluetooth on", "toggle bluetooth", "turn off the bluetooth", "turn on the bluetooth"
+        )
+        if (englishMatches.contains(lower)) return true
+
+        val banglishMatches = listOf(
+            "bluetooth off koro", "bluetooth on koro", "bluetooth bondho koro", "bluetooth chalu koro",
+            "bluetooth off kor", "bluetooth on kor"
+        )
+        if (banglishMatches.contains(lower)) return true
+
+        val banglaMatches = listOf(
+            "ব্লুটুথ বন্ধ করো", "ব্লুটুথ অন করো", "ব্লুটুথ অফ করো", "ব্লুটুথ চালু করো",
+            "ব্লুটুথ বন্ধ কর", "ব্লুটুথ অফ", "ব্লুটুথ অন"
+        )
+        if (banglaMatches.contains(lower)) return true
+
+        val patterns = listOf(
+            Regex("^(please )?(turn |switch )?(off |on )?(the )?bluetooth( off| on)?( please)?$"),
+            Regex("^(please )?bluetooth (off|on|off koro|on koro|bondho koro|chalu koro)( please)?$"),
+            Regex("^(ব্লুটুথ) (বন্ধ করো|অন করো|অফ করো|চালু করো|অফ|অন)$")
         )
         return patterns.any { it.matches(lower) }
     }
@@ -1185,7 +1410,7 @@ class CommandEngine {
         val lower = text.lowercase().trim()
         val englishMatches = listOf(
             "open bluetooth settings", "bluetooth settings", "open bluetooth", "bluetooth panel",
-            "show bluetooth settings", "show bluetooth", "launch bluetooth settings"
+            "show bluetooth settings", "show bluetooth", "launch bluetooth settings", "bluetooth"
         )
         if (englishMatches.contains(lower)) return true
 
@@ -1196,14 +1421,45 @@ class CommandEngine {
         if (banglishMatches.contains(lower)) return true
 
         val banglaMatches = listOf(
-            "ব্লুটুথ সেটিংস খোলো", "ব্লুটুথ খোলো", "ব্লুটুথ সেটিংস"
+            "ব্লুটুথ সেটিংস খোলো", "ব্লুটুথ খোলো", "ব্লুটুথ সেটিংস", "ব্লুটুথ"
         )
         if (banglaMatches.contains(lower)) return true
 
         val patterns = listOf(
             Regex("^(please )?(open|show|launch)( the| my)? bluetooth( settings?| panel)?( please)?$"),
             Regex("^(please )?bluetooth (settings? )?(kholo|open karo|chalu karo)( please)?$"),
-            Regex("^(ব্লুটুথ) (সেটিংস )?(খোলো|অন করো|চালু করো)$")
+            Regex("^(ব্লুটুথ) (সেটিংস )?(খোলো|চালু করো)$")
+        )
+        return patterns.any { it.matches(lower) }
+    }
+
+    private fun isMobileDataToggleCommand(text: String): Boolean {
+        val lower = text.lowercase().trim()
+        val englishMatches = listOf(
+            "turn off mobile data", "turn mobile data off", "turn on mobile data", "turn mobile data on",
+            "turn off data", "turn data off", "turn on data", "turn data on",
+            "mobile data off", "mobile data on", "data off", "data on",
+            "disable mobile data", "enable mobile data"
+        )
+        if (englishMatches.contains(lower)) return true
+
+        val banglishMatches = listOf(
+            "mobile data off koro", "mobile data on koro", "data off koro", "data on koro",
+            "mobile data bondho koro", "mobile data chalu koro"
+        )
+        if (banglishMatches.contains(lower)) return true
+
+        val banglaMatches = listOf(
+            "মোবাইল ডাটা বন্ধ করো", "মোবাইল ডাটা অন করো", "মোবাইল ডাটা অফ করো", "মোবাইল ডাটা চালু করো",
+            "ডাটা বন্ধ করো", "ডাটা অন করো", "ডাটা অফ করো", "ডাটা চালু করো",
+            "মোবাইল ডেটা বন্ধ করো", "মোবাইল ডেটা অন করো"
+        )
+        if (banglaMatches.contains(lower)) return true
+
+        val patterns = listOf(
+            Regex("^(please )?(turn |switch )?(off |on )?(the )?(mobile )?data( off| on)?( please)?$"),
+            Regex("^(please )?(mobile )?data (off|on|off koro|on koro|bondho koro|chalu koro)( please)?$"),
+            Regex("^(মোবাইল (ডাটা|ডেটা)|ডাটা|ডেটা) (বন্ধ করো|অন করো|অফ করো|চালু করো)$")
         )
         return patterns.any { it.matches(lower) }
     }
@@ -1215,7 +1471,7 @@ class CommandEngine {
             "mobile data settings", "open mobile network", "open mobile data", "open cellular data",
             "cellular settings", "mobile data panel", "network settings", "show mobile data settings",
             "show mobile network settings", "open cellular settings", "data roaming settings",
-            "cellular data settings", "data settings"
+            "cellular data settings", "data settings", "mobile data", "mobile network"
         )
         if (englishMatches.contains(lower)) return true
 
@@ -1360,6 +1616,50 @@ class CommandEngine {
             Regex("^(please )?(timer|set timer|start timer)\\b").containsMatchIn(lower) ||
             Regex("\\b(?:timer|টাইমার)\\b").containsMatchIn(lower)
         ) {
+            return true
+        }
+        return false
+    }
+
+    fun isAnswerCallCommand(text: String): Boolean {
+        val lower = text.lowercase().trim()
+        val exactMatches = listOf(
+            "answer", "answer call", "answer the call", "answer incoming call", "answer phone", "answer the phone",
+            "receive", "receive call", "receive the call", "receive incoming call", "receive phone", "receive the phone",
+            "pick up", "pick up call", "pick up the call", "pick up phone", "pick up the phone",
+            "accept call", "accept the call", "take call", "take the call",
+            "কল ধরো", "ফোন ধরো", "ধরো", "কলটা ধরো", "ফোনটা ধরো", "রিসিভ করো", "কল রিসিভ করো", "ফোন রিসিভ করো",
+            "কলটি ধরুন", "ফোন ধরুন", "কল ধরুন",
+            "call dhoro", "phone dhoro", "dhoro", "call receive koro", "phone receive koro", "receive koro",
+            "phone ta dhoro", "call ta dhoro", "pick up koro", "call pick up koro"
+        )
+        if (exactMatches.contains(lower)) return true
+        if (lower.startsWith("answer call") || lower.startsWith("receive call") ||
+            lower.endsWith("call dhoro") || lower.endsWith("phone dhoro") ||
+            lower.endsWith("কল ধরো") || lower.endsWith("ফোন ধরো")) {
+            return true
+        }
+        return false
+    }
+
+    fun isRejectCallCommand(text: String): Boolean {
+        val lower = text.lowercase().trim()
+        val exactMatches = listOf(
+            "reject", "reject call", "reject the call", "reject incoming call",
+            "decline", "decline call", "decline the call", "decline incoming call",
+            "ignore", "ignore call", "ignore the call", "ignore incoming call",
+            "hang up", "hang up call", "hang up the phone",
+            "cut call", "cut the call", "dismiss call",
+            "কল কাটো", "ফোন কাটো", "কাটো", "কলটা কাটো", "ফোনটা কাটো", "কেটে দাও", "কল কেটে দাও", "ফোন কেটে দাও",
+            "রিজেক্ট করো", "কল রিজেক্ট করো", "ফোন রিজেক্ট করো", "কলটি কাটুন", "কল কাটুন",
+            "call kato", "phone kato", "kato", "kete dao", "call kete dao", "phone kete dao",
+            "reject koro", "call reject koro", "phone reject koro", "decline koro", "call decline koro",
+            "ignore koro", "call ignore koro", "call cut koro"
+        )
+        if (exactMatches.contains(lower)) return true
+        if (lower.startsWith("reject call") || lower.startsWith("decline call") ||
+            lower.endsWith("call kato") || lower.endsWith("phone kato") ||
+            lower.endsWith("কল কাটো") || lower.endsWith("ফোন কাটো")) {
             return true
         }
         return false

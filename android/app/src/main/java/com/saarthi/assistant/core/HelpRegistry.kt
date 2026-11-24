@@ -85,6 +85,12 @@ object HelpRegistry {
                     banglish = "Timer cancel koro",
                     bangla = "টাইমার বাতিল করো",
                     description = "Cancels active countdown timer"
+                ),
+                HelpCommandExample(
+                    english = "Set a timer -> 5 minutes",
+                    banglish = "Timer lagao -> 5 minute",
+                    bangla = "টাইমার লাগাও -> ৫ মিনিট",
+                    description = "Follow-up conversation: answer duration when prompted"
                 )
             )
         ),
@@ -99,6 +105,12 @@ object HelpRegistry {
                     banglish = "Wi-Fi settings kholo",
                     bangla = "ওয়াইফাই সেটিংস খোলো",
                     description = "Opens system Wi-Fi connection panel"
+                ),
+                HelpCommandExample(
+                    english = "Turn off Wi-Fi",
+                    banglish = "Wi-Fi off koro",
+                    bangla = "ওয়াইফাই বন্ধ করো",
+                    description = "Opens Wi-Fi panel so you can toggle Wi-Fi (Android security restriction)"
                 )
             )
         ),
@@ -249,6 +261,38 @@ object HelpRegistry {
                     description = "Immediately stops TTS audio output"
                 )
             )
+        ),
+        HelpCategory(
+            id = "calling",
+            title = "Hands-Free Calling",
+            description = "Smart caller announcements and hands-free voice answering or rejecting while your hands are busy.",
+            iconName = "Phone",
+            examples = listOf(
+                HelpCommandExample(
+                    english = "Answer call",
+                    banglish = "Call dhoro",
+                    bangla = "কল ধরো",
+                    description = "Answers an incoming ringing phone call"
+                ),
+                HelpCommandExample(
+                    english = "Reject call",
+                    banglish = "Call kato",
+                    bangla = "কল কাটো",
+                    description = "Declines an incoming ringing phone call"
+                ),
+                HelpCommandExample(
+                    english = "Receive the call",
+                    banglish = "Phone receive koro",
+                    bangla = "ফোন রিসিভ করো",
+                    description = "Accepts ringing call via voice"
+                ),
+                HelpCommandExample(
+                    english = "Decline call",
+                    banglish = "Phone kete dao",
+                    bangla = "ফোন কেটে দাও",
+                    description = "Declines ringing call via voice"
+                )
+            )
         )
     )
 
@@ -256,7 +300,8 @@ object HelpRegistry {
      * Concise overview string formatted for verbal or conversational text output.
      */
     fun getOverviewSpoken(): String {
-        return "Here is what I can do offline: check battery level, control flashlight (on/off), " +
+        return "Here is what I can do offline: announce incoming callers and answer or reject calls hands-free, " +
+                "check battery level, control flashlight (on/off), " +
                 "open settings shortcuts (Wi-Fi, Bluetooth, mobile network, volume, brightness), " +
                 "set timers (e.g. '2 minute timer dao'), solve math ('45 plus 17'), " +
                 "tell the time and date, open apps (camera, clock, calendar, calculator, settings), " +
@@ -280,6 +325,9 @@ object HelpRegistry {
                     (lower == "volume" && c.id == "sound") ||
                     (lower == "display" && c.id == "brightness") ||
                     (lower == "math" && c.id == "calculator") ||
+                    (lower == "call" && c.id == "calling") ||
+                    (lower == "calling" && c.id == "calling") ||
+                    (lower == "phone" && c.id == "calling") ||
                     (lower == "time" && c.id == "time_date") ||
                     (lower == "date" && c.id == "time_date")
         } ?: return null

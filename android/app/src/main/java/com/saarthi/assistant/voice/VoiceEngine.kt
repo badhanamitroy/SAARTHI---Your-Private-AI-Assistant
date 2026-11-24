@@ -12,4 +12,6 @@ interface VoiceEngine {
     fun cancelListening()
 
     fun isListening(): Boolean
+
+    fun release()
 }

@@ -50,6 +50,9 @@ captures/
 # VS Code
 .vscode/
 
+# Local upstream source clone used as an integration reference
+/reference/OpenJarvis/
+
 # OS generated files
 .DS_Store
 .DS_Store?

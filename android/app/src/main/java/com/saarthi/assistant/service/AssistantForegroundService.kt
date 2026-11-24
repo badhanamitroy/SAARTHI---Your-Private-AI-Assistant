@@ -19,12 +19,15 @@ import com.saarthi.assistant.R
 import com.saarthi.assistant.core.AppLauncher
 import com.saarthi.assistant.core.CommandEngine
 import com.saarthi.assistant.core.CommandResult
+import com.saarthi.assistant.core.ConversationContext
 import com.saarthi.assistant.core.DeviceHardwareController
 import com.saarthi.assistant.core.ExecutionContract
 import com.saarthi.assistant.core.SensitiveAction
 import com.saarthi.assistant.core.SystemSettingsController
 import com.saarthi.assistant.core.TargetApp
 import com.saarthi.assistant.core.TimerController
+import com.saarthi.assistant.telephony.AndroidCallController
+import com.saarthi.assistant.telephony.CallCoordinator
 import com.saarthi.assistant.voice.AndroidSpeechEngine
 import com.saarthi.assistant.voice.TextToSpeechEngine
 import com.saarthi.assistant.wakeword.LocalWakeWordDetector
@@ -117,10 +120,13 @@ class AssistantForegroundService : Service() {
     private var isCurrentlyRecognizing = false
     private var isCurrentlySpeaking = false
 
+    private val conversationContext = ConversationContext()
+
     private val postWakeTimeoutRunnable = Runnable {
         if (wakeWordCoordinator.state == WakeWordState.LISTENING_FOR_COMMAND ||
             wakeWordCoordinator.state == WakeWordState.AWAITING_CONFIRMATION) {
             wakeWordCoordinator.onPostWakeTimeout()
+            conversationContext.clear()
             serviceStatusText.value = "Listening for 'Hey SAARTHI'..."
             updateNotification("Listening for 'Hey SAARTHI'...")
             scheduleNextRecognition(delayMs = 400)
@@ -367,7 +373,7 @@ class AssistantForegroundService : Service() {
     }
 
     private fun executeCommand(text: String) {
-        when (val result = commandEngine.process(text)) {
+        when (val result = commandEngine.process(text, conversationContext)) {
             is CommandResult.Reply -> {
                 serviceLastResponse.value = result.text
                 serviceStatusText.value = "Ready"
@@ -407,7 +413,7 @@ class AssistantForegroundService : Service() {
             }
 
             is CommandResult.OpenSystemSettings -> {
-                val contract = SystemSettingsController.openSetting(this, result.settingType)
+                val contract = SystemSettingsController.openSetting(this, result.settingType, result.isDirectToggleAttempt)
                 val feedback = when (contract) {
                     is ExecutionContract.Succeeded -> contract.spokenFeedback
                     is ExecutionContract.Failed -> contract.spokenFeedback
@@ -478,9 +484,38 @@ class AssistantForegroundService : Service() {
                 speakIfEnabled(feedback)
             }
 
+            CommandResult.AnswerCall -> {
+                val coordinator = CallCoordinator.instance
+                val contract = coordinator?.handleVoiceCallAnswer() ?: AndroidCallController(this).answerCall()
+                val feedback = when (contract) {
+                    is ExecutionContract.Succeeded -> contract.spokenFeedback
+                    is ExecutionContract.Failed -> contract.spokenFeedback
+                    else -> "Unable to answer call."
+                }
+                serviceLastResponse.value = feedback
+                serviceStatusText.value = "Call answered"
+                speakIfEnabled(feedback)
+            }
+
+            CommandResult.RejectCall -> {
+                val coordinator = CallCoordinator.instance
+                val contract = coordinator?.handleVoiceCallReject() ?: AndroidCallController(this).rejectCall()
+                val feedback = when (contract) {
+                    is ExecutionContract.Succeeded -> contract.spokenFeedback
+                    is ExecutionContract.Failed -> contract.spokenFeedback
+                    else -> "Unable to decline call."
+                }
+                serviceLastResponse.value = feedback
+                serviceStatusText.value = "Call declined"
+                speakIfEnabled(feedback)
+            }
+
             is CommandResult.Clarification -> {
                 serviceLastResponse.value = result.question
                 serviceStatusText.value = "Clarification needed"
+                if (result.question.contains("How long", ignoreCase = true) || result.question.contains("timer", ignoreCase = true)) {
+                    conversationContext.setPendingTimer(text)
+                }
                 speakIfEnabled(result.question)
                 // Stay in post-wake window for clarification
                 wakeWordCoordinator.enterPostWakeCommandWindow()

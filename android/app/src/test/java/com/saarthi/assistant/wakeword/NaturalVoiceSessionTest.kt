@@ -185,4 +185,48 @@ class NaturalVoiceSessionTest {
         assertEquals(WakeWordState.LISTENING_FOR_WAKE_WORD, coordinator.state)
         assertTrue(detector.isListening())
     }
+
+    // -------------------------------------------------------------
+    // Wake-Word Matching vs Genuine Acoustic Detection Contract
+    // -------------------------------------------------------------
+    @Test
+    fun wakeWordDetector_isTranscriptBasedMatcher_notRawAcousticModel() {
+        // Confirms LocalWakeWordDetector operates strictly on text phrases
+        assertEquals("LocalOfflinePhraseMatcher", detector.engineName)
+        assertTrue(detector.isAvailable)
+
+        val (hasWake, cmd) = LocalWakeWordDetector.extractWakeWordAndCommand("Hey SAARTHI, what is the battery")
+        assertTrue(hasWake)
+        assertEquals("what is the battery", cmd)
+
+        // Non-matching text is rejected
+        val (noWake, _) = LocalWakeWordDetector.extractWakeWordAndCommand("Hello Google")
+        assertFalse(noWake)
+    }
+
+    @Test
+    fun acousticWakeWordEngine_verifiesAudioParametersAndInferenceContract() {
+        val fakeAcousticEngine = object : AcousticWakeWordEngine {
+            var framesProcessed = 0
+            var isReset = false
+            override fun processFrame(pcmBuffer: ShortArray, offset: Int, length: Int): Float {
+                framesProcessed++
+                return if (length == frameSizeSamples && pcmBuffer[offset] > 0) 0.92f else 0.05f
+            }
+            override fun reset() { isReset = true }
+            override fun release() {}
+        }
+
+        // Standard 16 kHz Mono PCM audio parameters
+        assertEquals(16000, fakeAcousticEngine.sampleRateHz)
+        assertEquals(1280, fakeAcousticEngine.frameSizeSamples) // 80 ms window
+
+        val dummyPcm = ShortArray(1280) { 100 }
+        val confidence = fakeAcousticEngine.processFrame(dummyPcm, 0, 1280)
+        assertEquals(0.92f, confidence, 0.001f)
+        assertEquals(1, fakeAcousticEngine.framesProcessed)
+
+        fakeAcousticEngine.reset()
+        assertTrue(fakeAcousticEngine.isReset)
+    }
 }

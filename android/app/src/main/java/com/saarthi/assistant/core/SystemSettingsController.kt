@@ -23,6 +23,7 @@ enum class SystemSettingType(val displayName: String) {
  */
 interface SystemSettingsLauncher {
     fun openSetting(type: SystemSettingType): ExecutionContract
+    fun openSetting(type: SystemSettingType, isDirectToggleAttempt: Boolean): ExecutionContract = openSetting(type)
 }
 
 /**
@@ -33,6 +34,10 @@ interface SystemSettingsLauncher {
 class AndroidSystemSettingsLauncher(private val context: Context) : SystemSettingsLauncher {
 
     override fun openSetting(type: SystemSettingType): ExecutionContract {
+        return openSetting(type, false)
+    }
+
+    override fun openSetting(type: SystemSettingType, isDirectToggleAttempt: Boolean): ExecutionContract {
         val intent = buildIntentForSetting(type)
 
         // Ensure NEW_TASK flag is present when launching from non-Activity or Service contexts
@@ -47,7 +52,7 @@ class AndroidSystemSettingsLauncher(private val context: Context) : SystemSettin
                 fallbackIntent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
                 if (fallbackIntent.resolveActivity(pm) != null) {
                     context.startActivity(fallbackIntent)
-                    return buildSuccessContract(type)
+                    return buildSuccessContract(type, isDirectToggleAttempt)
                 }
 
                 return ExecutionContract.Failed(
@@ -58,7 +63,7 @@ class AndroidSystemSettingsLauncher(private val context: Context) : SystemSettin
             }
 
             context.startActivity(intent)
-            buildSuccessContract(type)
+            buildSuccessContract(type, isDirectToggleAttempt)
         } catch (e: ActivityNotFoundException) {
             ExecutionContract.Failed(
                 spokenFeedback = "No settings application was found to handle ${type.displayName}.",
@@ -130,28 +135,73 @@ class AndroidSystemSettingsLauncher(private val context: Context) : SystemSettin
             }
         }
 
-        fun buildSuccessContract(type: SystemSettingType): ExecutionContract.Succeeded {
+        fun buildSuccessContract(type: SystemSettingType, isDirectToggleAttempt: Boolean = false): ExecutionContract.Succeeded {
             val (spoken, display) = when (type) {
-                SystemSettingType.WIFI -> Pair(
-                    "Opening Wi-Fi settings. You can switch Wi-Fi networks there.",
-                    "Wi-Fi Settings opened"
-                )
-                SystemSettingType.BLUETOOTH -> Pair(
-                    "Opening Bluetooth settings. You can manage connected devices there.",
-                    "Bluetooth Settings opened"
-                )
-                SystemSettingType.MOBILE_DATA -> Pair(
-                    "Opening mobile network settings. Please adjust mobile data there.",
-                    "Mobile Network opened"
-                )
-                SystemSettingType.SOUND -> Pair(
-                    "Opening volume and sound settings.",
-                    "Volume Settings opened"
-                )
-                SystemSettingType.BRIGHTNESS -> Pair(
-                    "Opening display and brightness settings.",
-                    "Display Settings opened"
-                )
+                SystemSettingType.WIFI -> {
+                    if (isDirectToggleAttempt) {
+                        Pair(
+                            "Opening Wi-Fi settings. Please tap the Wi-Fi toggle, as Android restricts apps from toggling Wi-Fi directly.",
+                            "Wi-Fi settings opened (toggle there)"
+                        )
+                    } else {
+                        Pair(
+                            "Opening Wi-Fi settings. You can switch Wi-Fi networks there.",
+                            "Wi-Fi Settings opened"
+                        )
+                    }
+                }
+                SystemSettingType.BLUETOOTH -> {
+                    if (isDirectToggleAttempt) {
+                        Pair(
+                            "Opening Bluetooth settings. Please tap the Bluetooth toggle, as Android restricts apps from toggling Bluetooth directly.",
+                            "Bluetooth settings opened (toggle there)"
+                        )
+                    } else {
+                        Pair(
+                            "Opening Bluetooth settings. You can manage connected devices there.",
+                            "Bluetooth Settings opened"
+                        )
+                    }
+                }
+                SystemSettingType.MOBILE_DATA -> {
+                    if (isDirectToggleAttempt) {
+                        Pair(
+                            "Opening mobile network settings. Please tap the mobile data toggle, as Android restricts apps from toggling mobile data directly.",
+                            "Mobile Network opened (toggle there)"
+                        )
+                    } else {
+                        Pair(
+                            "Opening mobile network settings. Please adjust mobile data there.",
+                            "Mobile Network opened"
+                        )
+                    }
+                }
+                SystemSettingType.SOUND -> {
+                    if (isDirectToggleAttempt) {
+                        Pair(
+                            "Opening volume and sound settings. Please adjust the volume slider there.",
+                            "Volume settings opened"
+                        )
+                    } else {
+                        Pair(
+                            "Opening volume and sound settings.",
+                            "Volume Settings opened"
+                        )
+                    }
+                }
+                SystemSettingType.BRIGHTNESS -> {
+                    if (isDirectToggleAttempt) {
+                        Pair(
+                            "Opening display and brightness settings. Please adjust the brightness slider there.",
+                            "Display settings opened"
+                        )
+                    } else {
+                        Pair(
+                            "Opening display and brightness settings.",
+                            "Display Settings opened"
+                        )
+                    }
+                }
             }
             return ExecutionContract.Succeeded(
                 spokenFeedback = spoken,
@@ -211,13 +261,13 @@ object SystemSettingsController {
         return intent
     }
 
-    fun openSetting(context: Context?, type: SystemSettingType): ExecutionContract {
+    fun openSetting(context: Context?, type: SystemSettingType, isDirectToggleAttempt: Boolean = false): ExecutionContract {
         val launcher = customLauncher ?: (context?.let { AndroidSystemSettingsLauncher(it) }
             ?: return ExecutionContract.Failed(
                 spokenFeedback = "Context is required to launch settings.",
                 displayFeedback = "Context missing",
                 errorType = ExecutionFailureType.EVALUATION_ERROR
             ))
-        return launcher.openSetting(type)
+        return launcher.openSetting(type, isDirectToggleAttempt)
     }
 }
